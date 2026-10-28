@@ -1,0 +1,46 @@
+AmehloApp is a high-velocity, queue-based management platform built specifically for driving schools to eliminate operational 
+friction and maximize revenue without changing how they naturally operate. Moving away from rigid, traditional booking calendars, 
+the system digitizes a real-world, first-come-first-served token system where students simply check into a live dashboard queue 
+and wait for their token to be called. To unlock massive profitability, the platform features a premium priority-pricing engine 
+allowing busy students to pay a convenience fee (e.g., R100) to reserve specific high-demand slots and instantly skip to the 
+front of the line. Most importantly, AmehloApp integrates a silent, enterprise-grade AI facial recognition layer that cross-references
+ a snapshot of the driver’s seat against the student’s master biometric profile at the start of every session—wiping out instructor 
+ fraud, vehicle misuse, and "ghost lessons" to give owners absolute financial clarity and a bulletproof, 100% verified overview of 
+ their daily business operations.
+
+ bacause we need speed of development we will have to use monolith the transition to feature driven architecture later,
+also we're using mernstack typescript vite shadcn.
+
+amehloapp/
+├── backend/
+│   ├── src/
+│   │   ├── config/             # DB links, environment configurations
+│   │   ├── middleware/         # Auth verification, error captures
+│   │   ├── features/           # Isolated modular business domains
+│   │   │   ├── queue/          # Live token management, premium skip logic
+│   │   │   ├── biometrics/     # Driver snapshot upload, facial recognition API mapping
+│   │   │   └── billing/        # Payment gateway interface (R100 priority fee)
+│   │   └── server.ts
+├── frontend/
+│   ├── src/
+│   │   ├── components/         # Base shadcn primitives (Dialog, Button, Card, Table)
+│   │   ├── features/           # UI features mirroring backend domains
+│   │   │   ├── queue-live/     # Real-time dashboard view
+│   │   │   └── bio-capture/    # Camera capture and verification layout
+│   │   └── App.tsx
+
+frontend/
+└── src/
+    ├── components/
+    │   └── ui/                     # Base shadcn atomic primitives
+    ├── features/
+    │   └── queue/
+    │       ├── components/
+    │       │   ├── Navbar.tsx      # Modern brand header & navigation layout
+    │       │   ├── Sidebar.tsx     # Collapsible control panel 
+    │       │   ├── MetricCards.tsx # Fluid analytic block summaries
+    │       │   └── QueueStream.tsx # Right-to-Left interactive queue lane
+    │       ├── types/
+    │       │   └── queue.ts        # Shared TypeScript data models
+    │       └── QueueDashboard.tsx  # Central orchestrator managing state
+    └── App.tsx

@@ -1,0 +1,11 @@
+src/features/queue/
+├── types/
+│   └── queue.ts            # Master Student Profile + Session interfaces
+├── components/
+│   ├── Navbar.tsx          # Clean Light Brand Header
+│   ├── Sidebar.tsx         # Navigation Drawer
+│   ├── MetricCards.tsx     # Queue Metric Blocks
+│   ├── QueueStream.tsx     # Horizontal Timeline Canvas with "Skip" action
+│   ├── StudentSearchHUD.tsx # Smart search input with live financial gates
+│   └── RegisterStudentModal.tsx # Manual registration concierge fallback
+└── QueueDashboard.tsx      # Central State Orchestrator
