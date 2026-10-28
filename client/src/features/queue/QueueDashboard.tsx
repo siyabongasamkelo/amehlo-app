@@ -4,10 +4,11 @@ import { Sidebar } from "./components/Sidebar";
 import { MetricCards } from "./components/MetricCards";
 import { StudentSearchHUD } from "./components/StudentSearchHUD";
 import { QueueStream } from "./components/QueueStream";
+import { RegisterStudentModal } from "./components/registration/RegisterStudentModal";
 import type { MasterProfile, QueueItem } from "./types/queue";
 
-// Mock DB representing fully registered users via mobile or admin fallback
-const GLOBAL_DATABASE_PROFILES: MasterProfile[] = [
+// 📚 INITIAL DATABASE PROFILE SEEDS (Walk-Ins or App signups discoverable via the HUD)
+const INITIAL_PROFILES: MasterProfile[] = [
   {
     id: "usr_1",
     name: "Siyabonga Mabuza",
@@ -17,7 +18,7 @@ const GLOBAL_DATABASE_PROFILES: MasterProfile[] = [
     gender: "Male",
     drivingSchool: "Amehlo Elite",
     branch: "Empangeni",
-    masterSelfieUrl: "https://unsplash.com",
+    masterSelfieUrl: "",
     lessonsAvailable: 5,
     paymentStatus: "Paid",
     overallScore: 88,
@@ -32,7 +33,7 @@ const GLOBAL_DATABASE_PROFILES: MasterProfile[] = [
     gender: "Male",
     drivingSchool: "Amehlo Elite",
     branch: "Empangeni",
-    masterSelfieUrl: "https://unsplash.com",
+    masterSelfieUrl: "",
     lessonsAvailable: 12,
     paymentStatus: "Paid",
     overallScore: 92,
@@ -41,21 +42,6 @@ const GLOBAL_DATABASE_PROFILES: MasterProfile[] = [
   },
   {
     id: "usr_3",
-    name: "Thando Ndlovu",
-    email: "thando@gmail.com",
-    phone: "0637778889",
-    whatsappNo: "27637778889",
-    gender: "Female",
-    drivingSchool: "Amehlo Elite",
-    branch: "Richards Bay",
-    masterSelfieUrl: "https://unsplash.com",
-    lessonsAvailable: 0,
-    paymentStatus: "Pending",
-    overallScore: 74,
-    defaultCourseCode: "Code 8",
-  },
-  {
-    id: "usr_4",
     name: "Zane Pillay",
     email: "zane@gmail.com",
     phone: "0849990001",
@@ -63,7 +49,7 @@ const GLOBAL_DATABASE_PROFILES: MasterProfile[] = [
     gender: "Male",
     drivingSchool: "Amehlo Elite",
     branch: "Empangeni",
-    masterSelfieUrl: "https://unsplash.com",
+    masterSelfieUrl: "",
     lessonsAvailable: 8,
     paymentStatus: "Paid",
     overallScore: 81,
@@ -72,9 +58,13 @@ const GLOBAL_DATABASE_PROFILES: MasterProfile[] = [
 ];
 
 export const QueueDashboard: React.FC = () => {
+  // ⚡ Crucial: Initializing the master profiles state ledger
+  const [profiles, setProfiles] = useState<MasterProfile[]>(INITIAL_PROFILES);
   const [queue, setQueue] = useState<QueueItem[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const [isRegModalOpen, setIsRegModalOpen] = useState<boolean>(false);
 
+  // Recalculates waiting sequence indices and fluid 40-minute ETA blocks rolling forward
   const resequenceQueue = (currentList: QueueItem[]): QueueItem[] => {
     return currentList.map((item, idx) => {
       let status: "Active" | "Up Next" | "Waiting" = "Waiting";
@@ -96,13 +86,18 @@ export const QueueDashboard: React.FC = () => {
     });
   };
 
+  // Triggers when the SearchHUD selects an available student account and inserts them into cars
   const handleInsertToQueue = (
     profile: MasterProfile,
     instructor: string,
     isPremium: boolean,
   ) => {
-    // Structural Business Rules Enforced
-    if (queue.some((item) => item.profile.id === profile.id)) return; // Prevent double insertion
+    if (queue.some((item) => item.profile.id === profile.id)) {
+      alert(
+        "This student is already holding an active position in the live session stream.",
+      );
+      return;
+    }
 
     const newSession: QueueItem = {
       id: `sess_${Date.now()}`,
@@ -129,6 +124,11 @@ export const QueueDashboard: React.FC = () => {
     setQueue(resequenceQueue(updatedList));
   };
 
+  // Appends newly generated profiles from our manual fallback webcam wizard modal straight to local memory array
+  const handleManualProfileEnrollment = (newProfile: MasterProfile) => {
+    setProfiles((prev) => [newProfile, ...prev]);
+  };
+
   const handlePremiumUpgrade = (id: string) => {
     const updated = queue.map((item) =>
       item.id === id ? { ...item, isPremium: true } : item,
@@ -151,7 +151,7 @@ export const QueueDashboard: React.FC = () => {
 
     const updatedList = [...queue];
     const [skipped] = updatedList.splice(targetIdx, 1);
-    skipped.isPremium = false; // Demote shortcut status on skip
+    skipped.isPremium = false; // Revoke shortcuts on no-show
     updatedList.push(skipped);
 
     setQueue(resequenceQueue(updatedList));
@@ -160,14 +160,20 @@ export const QueueDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 font-sans antialiased selection:bg-orange-600/10">
       <Navbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+
       <div className="flex min-h-[calc(100vh-4rem)]">
         <Sidebar isOpen={sidebarOpen} />
+
         <main className="flex-1 bg-zinc-100/40 p-6 md:p-8 space-y-6 overflow-x-hidden">
+          {/* 🔗 Wired cleanly using our state arrays and layout triggers */}
           <StudentSearchHUD
-            masterProfiles={GLOBAL_DATABASE_PROFILES}
+            masterProfiles={profiles}
             onInsertToQueue={handleInsertToQueue}
+            onOpenRegistration={() => setIsRegModalOpen(true)}
           />
+
           <MetricCards queue={queue} />
+
           <QueueStream
             queue={queue}
             onUpgrade={handlePremiumUpgrade}
@@ -175,6 +181,15 @@ export const QueueDashboard: React.FC = () => {
           />
         </main>
       </div>
+
+      {/* Modern Multi-step Webcam Registration Wizard Overlay */}
+      <RegisterStudentModal
+        isOpen={isRegModalOpen}
+        onClose={() => setIsRegModalOpen(false)}
+        onRegisterComplete={handleManualProfileEnrollment}
+        currentBranch="Empangeni"
+        drivingSchoolName="Amehlo Elite Driving School"
+      />
     </div>
   );
 };

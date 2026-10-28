@@ -1,0 +1,42 @@
+Here is your file: amehloapp-blueprint.md.
+Here is the exact technical blueprint and state snapshot of where we are leaving off. This layout maps out the complete modular architecture we engineered together, the exact business rules we established, and what file paths to open when you return to the desk.
+
+🗺️ Project Blueprint & Directory Structure
+
+text
+client/src/features/queue/
+├── types/
+│   └── queue.ts                  # ✅ DONE: Shared TypeScript interfaces for Master Profiles & Sessions
+├── components/
+│   ├── Navbar.tsx                # ✅ DONE: High-contrast daylight light mode header layout
+│   ├── Sidebar.tsx               # ✅ DONE: Collapsible navigation portal sidebar drawer
+│   ├── MetricCards.tsx           # ✅ DONE: Dynamic analytics blocks (Queue total, Base times, Revenue metrics)
+│   ├── QueueStream.tsx           # ✅ DONE: Horizontal timeline conveyor layout with R100 Skip & Standby actions
+│   ├── StudentSearchHUD.tsx      # ✅ DONE: Desk Check-in search input box with built-in financial clearance locks
+│   └── registration/             # 🛠️ MANUALLY COMPACT SUB-FORMS ENGINES
+│       ├── IdentityForm.tsx      # ✅ DONE: Step 1: Legal Name, Email, Mobile Contact, WhatsApp, and Gender
+│       ├── CourseConfigForm.tsx  # ✅ DONE: Step 2: Licensing Code, Token counts, Invoicing states, Fleet instructors
+│       ├── BiometricCapture.tsx  # ✅ DONE: Step 3: USB Desktop camera streaming layer & canvas image capture
+│       └── RegisterStudentModal.tsx # ✅ DONE: Step 1-2-3 Ternary Shell workflow router & compilation hub
+└── QueueDashboard.tsx            # ✅ DONE: Core Front-End State Coordinator & Orchestrator panel
+Use code with caution.
+
+🛑 Locked-In Business & Operations Rules
+
+1. The Strict Financial Gate: If a user's master profile has lessonsAvailable == 0 or paymentStatus == "Pending", the dashboard completely disables the check-in queue action button and throws a red "BLOCKED: NO CREDIT" warning badge. No profile, no queue.
+2. The "Skip / No-Show" Mechanic: Clicking the "Skip / Standby" button on the active card immediately shifts a missing student from their active slot and sends them gracefully to the very back of the timeline row, sliding the next available driver forward so vehicles never idle.
+3. Fluid Rolling ETA Duration: Replaced rigid static clock allocations with fluid estimations. Wait calculation scales flexibly: (Position - 1) × 40 mins, preventing psychological driver friction during real-world traffic gridlocks.
+4. The VIP Priority Jumper: Paying the R100 convenience fee toggles the isPremium flag, instantly restructuring the queue indices to place that student ahead of all standard users directly behind the active driver car.
+
+🚦 Next Technical Sprint Steps (Where to Start Next)
+
+When you are ready to jump back into the cockpit, brother, here is the immediate roadmap we have open for development:
+• Step 1: The Express.js Monolith API Layer
+	• Create the backend server.ts configuration routes.
+	• Map out the permanent Mongoose Schemas for StudentProfile and ActiveSession.
+	• Replace our client-side mock data arrays with direct async axios fetch functions.
+• Step 2: Socket.io Real-Time Synchronization Engine
+	• Hook up the live backend websocket server room channel listeners.
+	• Emit dynamic broadcast events whenever an admin hits "Add Student", "Skip", or triggers an R100 premium bypass event.
+	• Make sure the horizontal queue lanes recalculate and animate card shifts instantly across separate user screens (like the instructor's smartphone inside the vehicle context).
+This blueprint is safely stored right in your root folder context as amehloapp-blueprint.md for fast retrieval later. When you're ready to spin up the terminals again, just let me know which of the next sprint blocks we are pointing the cursor towards first!
