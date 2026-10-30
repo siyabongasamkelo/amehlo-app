@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import {
   X,
   Camera,
-  ShieldCheck,
+  // ShieldCheck,
   User,
   Mail,
   Phone,

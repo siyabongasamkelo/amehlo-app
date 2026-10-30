@@ -40,3 +40,23 @@ When you are ready to jump back into the cockpit, brother, here is the immediate
 	• Emit dynamic broadcast events whenever an admin hits "Add Student", "Skip", or triggers an R100 premium bypass event.
 	• Make sure the horizontal queue lanes recalculate and animate card shifts instantly across separate user screens (like the instructor's smartphone inside the vehicle context).
 This blueprint is safely stored right in your root folder context as amehloapp-blueprint.md for fast retrieval later. When you're ready to spin up the terminals again, just let me know which of the next sprint blocks we are pointing the cursor towards first!
+
+
+we're working on the dashboard design front end only for now here is the Blueprint folder structure
+frontend/src/features/
+├── queue/               # Keep this strictly for your live dashboard & stream layout
+│   ├── components/      # Navbar, Sidebar, MetricCards, QueueStream
+│   └── QueueDashboard.tsx
+│
+├── students/            # NEW: For your Student Roster page
+│   ├── components/      # StudentTable, RegisterStudentModal
+│   └── StudentRoster.tsx
+│
+├── biometrics/          # NEW: For your Face Master Setup & Audit Logs
+│   ├── components/      # CameraCapture, AuditLogTable
+│   └── BiometricAudits.tsx
+│
+└── finance/             # NEW: Combines Revenue Engine & Priority Pricing setup
+    ├── components/      # RevenueCharts, PriorityFeeConfig
+    ├── RevenueEngine.tsx
+    └── PriorityPricing.tsx

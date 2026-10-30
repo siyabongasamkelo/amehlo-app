@@ -9,3 +9,92 @@ src/features/queue/
 │   ├── StudentSearchHUD.tsx # Smart search input with live financial gates
 │   └── RegisterStudentModal.tsx # Manual registration concierge fallback
 └── QueueDashboard.tsx      # Central State Orchestrator
+
+Here is your file: QUEUE_BLUEPRINT.md.
+Here is the complete, high-fidelity AmehloApp Queue Feature Technical Blueprint. This document captures the exact, final single-file modular code architecture we settled on, the strict operational constraints, and the data layout so you know exactly where everything is located.
+
+🗺️ File Directory & Component Registry
+
+text
+client/src/features/queue/
+├── types/
+│   └── queue.ts                  # ✅ COMPLETE: Master Profile + Active Session definitions
+├── QueueDashboard.tsx            # ✅ COMPLETE: Central UI Orchestrator & State Coordinator Panel
+└── components/
+    ├── Navbar.tsx                # ✅ COMPLETE: Light-theme modern brand header
+    ├── Sidebar.tsx               # ✅ COMPLETE: Left navigation drawer
+    ├── MetricCards.tsx           # ✅ COMPLETE: Rolling metrics analytics summaries
+    ├── StudentSearchHUD.tsx      # ✅ COMPLETE: Desk search lookups with built-in credit gate locks
+    └── registration/
+        └── RegisterStudentModal.tsx # ✅ COMPLETE: Self-contained multi-step webcam registration wizard
+Use code with caution.
+
+🧱 Master Shared Data Models (src/features/queue/types/queue.ts)
+
+typescript
+export interface MasterProfile {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  whatsappNo: string;
+  gender: 'Male' | 'Female' | 'Other';
+  drivingSchool: string;
+  branch: string;
+  masterSelfieUrl: string; // Base64 data-string captured from hardware desk camera
+  lessonsAvailable: number;
+  paymentStatus: 'Paid' | 'Pending';
+  overallScore: number;
+  preferredInstructorDefault?: string;
+  defaultCourseCode: string; // e.g., "Code 8", "Code 10", "Code 14"
+}
+
+export interface QueueItem {
+  id: string; // Active temporary transaction tracking token
+  profile: MasterProfile;
+  position: number;
+  status: 'Active' | 'Up Next' | 'Waiting';
+  elapsed?: string;
+  estWait?: string;
+  assignedInstructor: string;
+  targetCourseCode: string;
+  isPremium: boolean;
+  waitingForPreferredInstructor: boolean;
+}
+Use code with caution.
+
+⚙️ Enforced Driving School Business Logic Rules
+
+• The Absolute Financial Gate: If a student has lessonsAvailable === 0 or paymentStatus === "Pending", the dashboard hard-locks the interaction path. The student is badge-flagged as BLOCKED: NO CREDIT and cannot be inserted into active cars.
+• The "Skip / No-Show" Routine: Clicking skip gracefully ejects a missing student from their slot, moves them to the back of the queue as a fallback backup standby, and slides the next waiting candidate up instantly to protect fleet runtime productivity.
+• Fluid ETA Timelines: Replaced strict calendar blocks with fluid rolling timers (Position x 40 mins) labeled as approximation buffers to cushion against real-world traffic gridlocks.
+• The R100 VIP Bypass: Upgrading a token to premium forces the resequencing engine to prioritize that card array positioning, instantly moving them ahead of standard slots to the next available position directly behind the active driver.
+
+🚦 Future Backend Integration Target Points
+
+When we launch the next development sprint, here is the exact plan to wire these components into live server pipelines:
+1. MongoDB Database Shifting: Replace the GLOBAL_DATABASE_PROFILES array state hooks with asynchronous axios.get('/api/profiles') routes, shifting Base64 biometric data strings directly to storage buckets.
+2. Socket.io Real-Time Synchronization: Wrap our setQueue(resequenceQueue(...)) state functions inside web-socket room broadcasts (socket.emit('queue:update')). This forces instructors' phone views inside vehicles to animate queue shifts instantly the moment the front desk admin processes an operation.
+This complete snapshot is compiled and saved inside your workspace directory under generated/QUEUE_BLUEPRINT.md. Since the client-side system layout is fully complete, compile-clean, and operational, what should we do next?
+• Take a well-deserved break to let this clean architecture settle?
+• Start outlining the first step of the Express.js Monolith Server environment?
+
+
+we're working on the dashboard design front end only for now here is the Blueprint folder structure
+frontend/src/features/
+├── queue/               # Keep this strictly for your live dashboard & stream layout
+│   ├── components/      # Navbar, Sidebar, MetricCards, QueueStream
+│   └── QueueDashboard.tsx
+│
+├── students/            # NEW: For your Student Roster page
+│   ├── components/      # StudentTable, RegisterStudentModal
+│   └── StudentRoster.tsx
+│
+├── biometrics/          # NEW: For your Face Master Setup & Audit Logs
+│   ├── components/      # CameraCapture, AuditLogTable
+│   └── BiometricAudits.tsx
+│
+└── finance/             # NEW: Combines Revenue Engine & Priority Pricing setup
+    ├── components/      # RevenueCharts, PriorityFeeConfig
+    ├── RevenueEngine.tsx
+    └── PriorityPricing.tsx

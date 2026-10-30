@@ -1,14 +1,26 @@
 import React from "react";
 import { Menu } from "lucide-react";
 
+type ActiveView =
+  | "queue"
+  | "students"
+  | "pricing"
+  | "fraud"
+  | "fleet"
+  | "revenue";
+
 interface NavbarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+  activeView: ActiveView;
+  onViewChange: (view: ActiveView) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   sidebarOpen,
   setSidebarOpen,
+  activeView,
+  onViewChange,
 }) => {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-200 bg-white/80 backdrop-blur-md px-6 h-16 flex items-center justify-between">
@@ -29,30 +41,46 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       <nav className="hidden md:flex items-center gap-1 text-sm font-medium text-zinc-500">
-        <a
-          href="#dashboard"
-          className="px-4 py-2 text-zinc-900 bg-zinc-100 rounded-md transition-colors"
+        <button
+          onClick={() => onViewChange("queue")}
+          className={`px-4 py-2 rounded-md transition-colors cursor-pointer ${
+            activeView === "queue"
+              ? "text-zinc-900 bg-zinc-100"
+              : "hover:text-zinc-900"
+          }`}
         >
           Dashboard
-        </a>
-        <a
-          href="#fleet"
-          className="px-4 py-2 hover:text-zinc-900 transition-colors"
+        </button>
+        <button
+          onClick={() => onViewChange("fleet")}
+          className={`px-4 py-2 rounded-md transition-colors cursor-pointer ${
+            activeView === "fleet"
+              ? "text-zinc-900 bg-zinc-100"
+              : "hover:text-zinc-900"
+          }`}
         >
           Live Fleet
-        </a>
-        <a
-          href="#revenue"
-          className="px-4 py-2 hover:text-zinc-900 transition-colors"
+        </button>
+        <button
+          onClick={() => onViewChange("revenue")}
+          className={`px-4 py-2 rounded-md transition-colors cursor-pointer ${
+            activeView === "revenue"
+              ? "text-zinc-900 bg-zinc-100"
+              : "hover:text-zinc-900"
+          }`}
         >
           Revenue Engine
-        </a>
-        <a
-          href="#biometrics"
-          className="px-4 py-2 hover:text-zinc-900 transition-colors"
+        </button>
+        <button
+          onClick={() => onViewChange("fraud")}
+          className={`px-4 py-2 rounded-md transition-colors cursor-pointer ${
+            activeView === "fraud"
+              ? "text-zinc-900 bg-zinc-100"
+              : "hover:text-zinc-900"
+          }`}
         >
           Biometrics
-        </a>
+        </button>
       </nav>
 
       <div className="flex items-center gap-4">

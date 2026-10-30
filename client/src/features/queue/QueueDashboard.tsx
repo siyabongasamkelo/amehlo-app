@@ -6,6 +6,11 @@ import { StudentSearchHUD } from "./components/StudentSearchHUD";
 import { QueueStream } from "./components/QueueStream";
 import { RegisterStudentModal } from "./components/registration/RegisterStudentModal";
 import type { MasterProfile, QueueItem } from "./types/queue";
+import { StudentRoster } from "../students/StudentRoster";
+import { PriorityPricing } from "../finance/PriorityPricing";
+import { BiometricAudits } from "../biometrics/BiometricAudits";
+import { LiveFleet } from "../fleet/LiveFleet";
+import { RevenueEngine } from "../finance/RevenueEngine";
 
 // 📚 INITIAL DATABASE PROFILE SEEDS (Walk-Ins or App signups discoverable via the HUD)
 const INITIAL_PROFILES: MasterProfile[] = [
@@ -58,6 +63,20 @@ const INITIAL_PROFILES: MasterProfile[] = [
 ];
 
 export const QueueDashboard: React.FC = () => {
+  // Add a simple View type at the top of your orchestrator
+  type ActiveView =
+    | "queue"
+    | "students"
+    | "pricing"
+    | "fraud"
+    | "fleet"
+    | "revenue";
+
+  // Inside your main component:
+  // const [currentView, setCurrentView] = useState<ActiveView>("queue");
+
+  const [activeView, setActiveView] = useState<ActiveView>("queue");
+
   // ⚡ Crucial: Initializing the master profiles state ledger
   const [profiles, setProfiles] = useState<MasterProfile[]>(INITIAL_PROFILES);
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -159,26 +178,61 @@ export const QueueDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 font-sans antialiased selection:bg-orange-600/10">
-      <Navbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+      <Navbar
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        activeView={activeView}
+        onViewChange={setActiveView}
+      />
 
       <div className="flex min-h-[calc(100vh-4rem)]">
-        <Sidebar isOpen={sidebarOpen} />
+        <Sidebar
+          activeView={activeView}
+          onViewChange={setActiveView}
+          isOpen={sidebarOpen}
+        />
 
         <main className="flex-1 bg-zinc-100/40 p-6 md:p-8 space-y-6 overflow-x-hidden">
-          {/* 🔗 Wired cleanly using our state arrays and layout triggers */}
-          <StudentSearchHUD
-            masterProfiles={profiles}
-            onInsertToQueue={handleInsertToQueue}
-            onOpenRegistration={() => setIsRegModalOpen(true)}
-          />
+          {/* ⚡ CONDITIONAL LAYOUT CONDENSER */}
+          {activeView === "queue" && (
+            <>
+              <StudentSearchHUD
+                masterProfiles={profiles}
+                onInsertToQueue={handleInsertToQueue}
+                onOpenRegistration={() => setIsRegModalOpen(true)}
+              />
+              <MetricCards queue={queue} />
+              <QueueStream
+                queue={queue}
+                onUpgrade={handlePremiumUpgrade}
+                onSkip={handleSkipStudent}
+              />
+            </>
+          )}
 
-          <MetricCards queue={queue} />
+          {activeView === "students" && (
+            <StudentRoster
+              masterProfiles={profiles}
+              onOpenRegistration={() => setIsRegModalOpen(true)}
+            />
+          )}
 
-          <QueueStream
-            queue={queue}
-            onUpgrade={handlePremiumUpgrade}
-            onSkip={handleSkipStudent}
-          />
+          {activeView === "pricing" && <PriorityPricing queue={queue} />}
+          {activeView === "fraud" && <BiometricAudits />}
+          {activeView === "fleet" && <LiveFleet />}
+          {activeView === "revenue" && <RevenueEngine />}
+
+          {/* Fallback placeholders for other views while prototyping */}
+          {activeView !== "queue" && activeView !== "students" && (
+            <div className="bg-white border border-zinc-200 rounded-2xl p-12 text-center text-zinc-400">
+              <p className="font-bold text-zinc-700 capitalize">
+                {activeView} Workspace View
+              </p>
+              <p className="text-xs mt-1">
+                Prototype space under construction.
+              </p>
+            </div>
+          )}
         </main>
       </div>
 
