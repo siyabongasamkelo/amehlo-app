@@ -5,12 +5,16 @@
 // import './App.css'
 
 import { QueueDashboard } from "./features/queue/QueueDashboard";
+// import { OnboardingStep1 } from "./features/students/components/onboarding/OnboardingStep1";
+// import { StudentDashboard } from "./features/students/StudentDashboard";
 function App() {
   // const [count, setCount] = useState(0)
 
   return (
     <>
       <QueueDashboard />
+      {/* <StudentDashboard /> */}
+      {/* <OnboardingStep1 /> */}
     </>
   );
 }

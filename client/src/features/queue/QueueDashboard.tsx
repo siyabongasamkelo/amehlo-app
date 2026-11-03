@@ -12,7 +12,9 @@ import { BiometricAudits } from "../biometrics/BiometricAudits";
 import { LiveFleet } from "../fleet/LiveFleet";
 import { RevenueEngine } from "../finance/RevenueEngine";
 
-// 📚 INITIAL DATABASE PROFILE SEEDS (Walk-Ins or App signups discoverable via the HUD)
+// 📱 IMPORT THE NEW COMPONENT FRAGMENT WE JUST BUILT
+import { StudentDashboard } from "../students/StudentDashboard";
+
 const INITIAL_PROFILES: MasterProfile[] = [
   {
     id: "usr_1",
@@ -55,35 +57,34 @@ const INITIAL_PROFILES: MasterProfile[] = [
     drivingSchool: "Amehlo Elite",
     branch: "Empangeni",
     masterSelfieUrl: "",
-    lessonsAvailable: 8,
-    paymentStatus: "Paid",
+    lessonsAvailable: 0, // Enforcing Strict Financial Gate for testing
+    paymentStatus: "Pending",
     overallScore: 81,
     defaultCourseCode: "Code 14",
   },
 ];
 
 export const QueueDashboard: React.FC = () => {
-  // Add a simple View type at the top of your orchestrator
+  // 🔄 EXTEND ACTIVE VIEWS MATRIX WITH THE STUDENT VIEW PORTKEY
   type ActiveView =
     | "queue"
     | "students"
     | "pricing"
     | "fraud"
     | "fleet"
-    | "revenue";
-
-  // Inside your main component:
-  // const [currentView, setCurrentView] = useState<ActiveView>("queue");
+    | "revenue"
+    | "student_mobile_mode"; // New testing route key
 
   const [activeView, setActiveView] = useState<ActiveView>("queue");
-
-  // ⚡ Crucial: Initializing the master profiles state ledger
   const [profiles, setProfiles] = useState<MasterProfile[]>(INITIAL_PROFILES);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [isRegModalOpen, setIsRegModalOpen] = useState<boolean>(false);
 
-  // Recalculates waiting sequence indices and fluid 40-minute ETA blocks rolling forward
+  // 👤 PICK A MOCK STUDENT CONTEXT TO ACT AS THE LOGGED-IN MOBILE USER (e.g., Siyabonga)
+  const [currentLoggedInStudent, setCurrentLoggedInStudent] =
+    useState<MasterProfile>(profiles[0]);
+
   const resequenceQueue = (currentList: QueueItem[]): QueueItem[] => {
     return currentList.map((item, idx) => {
       let status: "Active" | "Up Next" | "Waiting" = "Waiting";
@@ -105,16 +106,13 @@ export const QueueDashboard: React.FC = () => {
     });
   };
 
-  // Triggers when the SearchHUD selects an available student account and inserts them into cars
   const handleInsertToQueue = (
     profile: MasterProfile,
     instructor: string,
     isPremium: boolean,
   ) => {
     if (queue.some((item) => item.profile.id === profile.id)) {
-      alert(
-        "This student is already holding an active position in the live session stream.",
-      );
+      alert("This student is already holding an active position.");
       return;
     }
 
@@ -143,7 +141,6 @@ export const QueueDashboard: React.FC = () => {
     setQueue(resequenceQueue(updatedList));
   };
 
-  // Appends newly generated profiles from our manual fallback webcam wizard modal straight to local memory array
   const handleManualProfileEnrollment = (newProfile: MasterProfile) => {
     setProfiles((prev) => [newProfile, ...prev]);
   };
@@ -170,11 +167,23 @@ export const QueueDashboard: React.FC = () => {
 
     const updatedList = [...queue];
     const [skipped] = updatedList.splice(targetIdx, 1);
-    skipped.isPremium = false; // Revoke shortcuts on no-show
+    skipped.isPremium = false;
     updatedList.push(skipped);
 
     setQueue(resequenceQueue(updatedList));
   };
+
+  // 📱 IF USER CHOOSES STUDENT MOBILE MODE, RENDER ITS FULL SCREEN COMPONENT COMPLETELY INDEPENDENT
+  if (activeView === "student_mobile_mode") {
+    return (
+      <StudentDashboard
+        currentStudent={currentLoggedInStudent}
+        globalQueue={queue}
+        onUpgradePremium={handlePremiumUpgrade}
+        onSignOut={() => setActiveView("queue")} // Signing out returns you to Admin Screen view
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 font-sans antialiased selection:bg-orange-600/10">
@@ -185,7 +194,38 @@ export const QueueDashboard: React.FC = () => {
         onViewChange={setActiveView}
       />
 
-      <div className="flex min-h-[calc(100vh-4rem)]">
+      {/* 🛠️ TEMPORARY TESTING HUD BLOCK AT THE VERY TOP OF ADMIN PANEL */}
+      <div className="bg-zinc-900 text-white px-6 py-2.5 flex items-center justify-between text-xs font-semibold shrink-0">
+        <span className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
+          AmehloApp Environment Panel — Sandbox Simulation Portal
+        </span>
+        <div className="flex items-center gap-4">
+          <span className="text-zinc-400">Simulate Mobile Session User:</span>
+          <select
+            value={currentLoggedInStudent.id}
+            onChange={(e) => {
+              const selected = profiles.find((p) => p.id === e.target.value);
+              if (selected) setCurrentLoggedInStudent(selected);
+            }}
+            className="bg-zinc-800 text-white border border-zinc-700 rounded px-2 py-0.5 focus:outline-none"
+          >
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.paymentStatus})
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => setActiveView("student_mobile_mode")}
+            className="bg-orange-600 hover:bg-orange-500 text-white font-bold px-3 py-1 rounded transition-colors cursor-pointer"
+          >
+            Launch Student Mobile view ➔
+          </button>
+        </div>
+      </div>
+
+      <div className="flex min-h-[calc(100vh-6.5rem)]">
         <Sidebar
           activeView={activeView}
           onViewChange={setActiveView}
@@ -193,7 +233,6 @@ export const QueueDashboard: React.FC = () => {
         />
 
         <main className="flex-1 bg-zinc-100/40 p-6 md:p-8 space-y-6 overflow-x-hidden">
-          {/* ⚡ CONDITIONAL LAYOUT CONDENSER */}
           {activeView === "queue" && (
             <>
               <StudentSearchHUD
@@ -222,7 +261,6 @@ export const QueueDashboard: React.FC = () => {
           {activeView === "fleet" && <LiveFleet />}
           {activeView === "revenue" && <RevenueEngine />}
 
-          {/* Fallback placeholders for other views while prototyping */}
           {activeView !== "queue" && activeView !== "students" && (
             <div className="bg-white border border-zinc-200 rounded-2xl p-12 text-center text-zinc-400">
               <p className="font-bold text-zinc-700 capitalize">
@@ -236,7 +274,6 @@ export const QueueDashboard: React.FC = () => {
         </main>
       </div>
 
-      {/* Modern Multi-step Webcam Registration Wizard Overlay */}
       <RegisterStudentModal
         isOpen={isRegModalOpen}
         onClose={() => setIsRegModalOpen(false)}
