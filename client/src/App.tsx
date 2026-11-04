@@ -7,14 +7,18 @@
 import { QueueDashboard } from "./features/queue/QueueDashboard";
 // import { OnboardingStep1 } from "./features/students/components/onboarding/OnboardingStep1";
 // import { StudentDashboard } from "./features/students/StudentDashboard";
+import { RegisterGateway } from "./features/register/RegisterGateway";
+import { CustomerGateway } from "./features/customer-portal/CustomerGateway";
 function App() {
   // const [count, setCount] = useState(0)
 
   return (
     <>
-      <QueueDashboard />
+      {/* <QueueDashboard /> */}
+      {/* <RegisterGateway /> */}
       {/* <StudentDashboard /> */}
       {/* <OnboardingStep1 /> */}
+      <CustomerGateway />
     </>
   );
 }
