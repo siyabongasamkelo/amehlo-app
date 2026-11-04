@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useApp } from "../../context/AppContext";
 import {
   UserPlus,
   Shield,
@@ -7,8 +8,13 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const RegisterGateway: React.FC = () => {
+  // CONNECT AND PULL THE LOGIN EMULATION ENGINE
+  const { loginSimulated } = useApp();
+  const navigate = useNavigate();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,19 +28,19 @@ export const RegisterGateway: React.FC = () => {
 
     setIsLoading(true);
 
-    // SYSTEM SIMULATION OF THE ROUTING ENGINE MATRIX
+    // ACTIVATE HOOK TO UPDATE OUR SINGLE SOURCE OF TRUTH CONTEXT
     setTimeout(() => {
       setIsLoading(false);
+
+      // 🚀 THIS IS THE ENGINE KEY: Inject data straight into the Context brain!
+      loginSimulated(name, email, inviteCode);
+
       if (inviteCode.trim() !== "") {
-        alert(
-          `Staff Token Detected (${inviteCode.toUpperCase()})!\nMapping profile to branch backend.\nRouting directly to Live Queue Terminal Room...`,
-        );
+        navigate("/dashboard"); // Staff token bypasses setups straight to the terminal
       } else {
-        alert(
-          `No Token Provided.\nInitializing Global Enterprise Account for: ${name}.\nRouting straight to Branch Provisioning Gateway...`,
-        );
+        navigate("/branches"); // Master business profile configures locations first
       }
-    }, 1200);
+    }, 800);
   };
 
   return (
@@ -59,7 +65,6 @@ export const RegisterGateway: React.FC = () => {
           onSubmit={handleRegistration}
           className="bg-white border border-zinc-200 rounded-3xl p-6 md:p-8 shadow-sm space-y-4"
         >
-          {/* CONTROL SECTION 1: USER DATA INPUT */}
           <div className="space-y-3.5">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
@@ -122,7 +127,6 @@ export const RegisterGateway: React.FC = () => {
             </div>
           </div>
 
-          {/* ISOLATED INTERACTION ZONE DIVISION LINE */}
           <div className="relative my-6 select-none">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-zinc-100" />
@@ -141,7 +145,7 @@ export const RegisterGateway: React.FC = () => {
                 <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
                   Staff Invite Token
                 </label>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-zinc-200/50 text-zinc-500">
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-200/50 font-bold uppercase tracking-wider text-zinc-500">
                   Optional
                 </span>
               </div>
@@ -180,7 +184,6 @@ export const RegisterGateway: React.FC = () => {
             </div>
           </div>
 
-          {/* FORM ACTION COMMIT UNIT */}
           <div className="pt-2">
             <button
               type="submit"
