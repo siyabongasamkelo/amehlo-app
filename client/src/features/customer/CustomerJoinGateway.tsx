@@ -48,25 +48,41 @@ export const CustomerJoinGateway: React.FC = () => {
     socket.on("queue_updated", (updatedQueue: any) => {
       console.log("Ameblo network shift received stream:", updatedQueue);
 
-      // Ensure payload parsing handles variations gracefully
+      // Ensure payload parsing handles array structural variations gracefully
       const queueArray = Array.isArray(updatedQueue)
         ? updatedQueue
         : updatedQueue?.queue || [];
 
-      // Match using MongoDB ID parameters or ticket numbers
+      // CRITICAL ROBUST MATCH: Fallback to the rolling ticketId string if MongoDB _id skips a match
       const freshRecord = queueArray.find(
-        (t: any) => t._id === myTicket._id || t.ticketId === myTicket.ticketId,
+        (t: any) =>
+          (t._id &&
+            myTicket._id &&
+            t._id.toString() === myTicket._id.toString()) ||
+          t.ticketId === myTicket.ticketId,
       );
 
       if (freshRecord) {
+        console.log(
+          `Match found! Updating position tracking coordinate to: Pos #${freshRecord.position}`,
+        );
         setLivePosition(freshRecord.position);
-        // Cache the newest sequential tracking coordinate state locally
+
+        // Update the phone cache container with the updated sequence payload
+        // This makes sure if they refresh right now, they boot up with the NEW position!
+        const updatedTicketMemory = {
+          ...myTicket,
+          position: freshRecord.position,
+        };
         localStorage.setItem(
           "amehlo_active_ticket",
-          JSON.stringify(freshRecord),
+          JSON.stringify(updatedTicketMemory),
         );
       } else {
-        // If the ticket is missing entirely from the active lane, they're served!
+        // If we've parsed a clean array and this ticket code is missing entirely, they've been served!
+        console.log(
+          "Ticket missing from active array stream. Archiving session.",
+        );
         setLivePosition(null);
         setMyTicket((prev: any) =>
           prev ? { ...prev, status: "Completed" } : null,
