@@ -1,0 +1,39 @@
+Yes, brother, that makes perfect sense. Keeping it as a monolithic structure using the MERN stack (TypeScript, MongoDB, Mongoose) with modern ES modules is exactly the right move for a prototype. It keeps your development lightning-fast, avoids premature over-engineering, and prevents you from getting bogged down in microservice or heavy feature-driven architectural fluff while you are still validating the MLP.
+By organizing your monolithic server into a clean, logical folder structure from day one, you ensure that separating it into modules or microservices later will be a clean cut-and-paste job without altering your core code engine.
+
+📁 Proposed Monolith Server Folder Structure
+
+Here is how we can structure the backend/ directory to keep it simple yet perfectly prepared for the future:
+text
+backend/
+├── src/
+│   ├── config/             # Database connection (db.ts) and environment variables
+│   ├── models/             # Mongoose schemas & TypeScript type definitions
+│   ├── controllers/        # Request handlers (business logic matching your simulated actions)
+│   ├── routes/             # Express API endpoints (/api/auth, /api/branches, /api/queue)
+│   ├── middleware/         # Auth guards, role validation, and error handlers
+│   ├── index.ts            # Server entry point (Express app initialization + Socket.io setup)
+│   └── types/              # Global express or request type overrides
+├── package.json
+└── tsconfig.json
+Use code with caution.
+
+⚙️ Mapping Simulated Front-End Actions to Backend Routes
+
+To replace your AppContext.tsx memory engine smoothly, your controllers will directly process these lightweight API endpoints:
+• Authentication & Entry Gateway:
+	• POST /api/auth/register-simulated \(\rightarrow \) Evaluates the presence of the inviteCode string. Automatically flags the user model as an owner or maps them to a specific branch as a worker.
+• Branch Infrastructure:
+	• POST /api/branches \(\rightarrow \) Generates the branch slug and the unique auto-generated employee key string (AMHL-XYZ-12).
+	• GET /api/branches \(\rightarrow \) Returns clusters based on the owner's ID or limits a worker to their assigned node.
+• Live Queue Pipeline (The Priority Engine):
+	• POST /api/queue/join \(\rightarrow \) Triggered by the customer web form or manual entry. Calculates the current capacity length \(+1\) and appends a 3-digit rolling ticket string.
+	• POST /api/queue/:ticketId/skip \(\rightarrow \) Pulls the document out of its current position array index and pushes it to the back of the queue.
+	• POST /api/queue/:ticketId/complete \(\rightarrow \) Deletes or archives the ticket from the active lane collection and creates a document entry inside the CompletionLogs collection.
+	• DELETE /api/queue/:ticketId/ghost \(\rightarrow \) Instantly purges an absent client document cleanly without creating a completion footprint.
+
+📡 The Secret Sauce: Real-Time Synchronization
+
+Since we are aiming for a flawless operational experience where worker desks and customer mobile HUD screens stay updated instantly without manual refreshing, we will bake Socket.io directly into this monolith. Whenever a queue route (skip, complete, join) fires a database mutation, the controller will broadcast the fresh state down the websocket pipeline.
+The blueprint makes perfect sense, and the stack is lightweight and incredibly fast to spin up.
+Are you ready to initialize the project files and write the Mongoose Models (User, Branch, QueueTicket, CompletionLog) to set up our database blueprint, or would you like to map out the server entry script configuration first?
