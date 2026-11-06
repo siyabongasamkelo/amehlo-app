@@ -33,8 +33,9 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
     origin: [
-      "http://localhost:5173", // Allows your local Vite development server
-      "amehlo-queue.netlify.app", // Add your live frontend URL here once deployed!
+      "http://localhost:5173", // Local development
+      "http://127.0.0.1:5173", // Backup local fallback loop
+      "https://netlify.app", // Clean live Netlify origin with https://
     ],
     methods: ["GET", "POST"],
     credentials: true,
