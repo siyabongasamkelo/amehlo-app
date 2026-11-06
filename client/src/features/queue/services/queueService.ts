@@ -1,7 +1,12 @@
 import axios from "axios";
 
 // 🎯 CRITICAL FIX: Base matches your singular backend express routing definitions
-const API_URL = "http://localhost:5000/api/queue";
+// const API_URL = "http://localhost:5000/api/queue";
+
+const API_URL =
+  import.meta.env.MODE === "development"
+    ? "http://localhost:5000/api/queue"
+    : "https://amehlo-app.onrender.com/api/queue";
 
 export interface IQueueItem {
   _id: string; // The MongoDB Document identity key
@@ -54,5 +59,20 @@ export const queueService = {
   purgeGhostClient: async (ticketId: string): Promise<IQueueItem[]> => {
     const response = await axios.delete(`${API_URL}/${ticketId}/ghost`);
     return response.data.queue;
+  },
+
+  // ➔ Fetch pre-calculated server analytics payload values
+  // 🎯 UPDATE THIS SPECIFIC METHOD CAPTURE SIGNATURE INSIDE YOUR frontend queueService.ts
+  getBranchAnalytics: async (
+    branchId: string,
+  ): Promise<{
+    averageWaitTime: string;
+    bestWaitTime: string;
+    worstWaitTime: string;
+    totalCompleted: number;
+    rawLogs: any[];
+  }> => {
+    const response = await axios.get(`${API_URL}/${branchId}/analytics`);
+    return response.data;
   },
 };

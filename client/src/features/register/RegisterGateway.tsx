@@ -9,11 +9,12 @@ export const RegisterGateway: React.FC = () => {
   const { syncAndHydrateProfile } = useApp();
 
   // If clerk finishes sign up forms, instantly trigger our backend atomic profile layout builder
+  // ➔ Trigger profile synch precisely when clerk sign in verification clears
   useEffect(() => {
     if (isSignedIn) {
       syncAndHydrateProfile(inviteCode);
     }
-  }, [isSignedIn, syncAndHydrateProfile, inviteCode]);
+  }, [isSignedIn]); // 🎯 Remove inviteCode and syncAndHydrateProfile out of the tracker array to block key-logger loops!
 
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col justify-center items-center p-6">

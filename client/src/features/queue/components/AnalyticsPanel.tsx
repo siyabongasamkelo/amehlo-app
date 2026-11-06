@@ -7,42 +7,37 @@ import {
   ShieldAlert,
   BarChart3,
 } from "lucide-react";
-import type { CompletionLog } from "../types/queue";
 
 interface AnalyticsPanelProps {
-  logs: CompletionLog[];
+  logs: any[];
+  averageWaitTime: string;
+  bestWaitTime: string;
+  worstWaitTime: string;
+  totalCompletedCount: number;
   businessName: string;
   onClose: () => void;
 }
 
 export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
   logs,
+  averageWaitTime,
+  bestWaitTime,
+  worstWaitTime,
+  totalCompletedCount,
   businessName,
   onClose,
 }) => {
-  // ⚡ CRUNCH PERFORMANCE VELOCITY RECORDS DYNAMICALLY
-  const getMetrics = () => {
-    if (logs.length === 0) {
-      return {
-        avg: "0 mins",
-        best: "0 mins",
-        worst: "0 mins",
-        peakHour: "No data logged yet",
-      };
-    }
+  console.log("Analytics In Component", worstWaitTime);
 
-    const durations = logs.map(
-      (log) => (log.completedAt - log.addedAt) / 1000 / 60,
-    ); // Array of session runtimes in minutes
-    const totalMins = durations.reduce((acc, curr) => acc + curr, 0);
-    const avgMins = Math.round(totalMins / logs.length);
-    const bestMins = Math.round(Math.min(...durations));
-    const worstMins = Math.round(Math.max(...durations));
+  // 🕒 CALCULATE TRAFFIC PEAK TIME WINDOW DENSITIES LOCALLY
+  const calculatePeakHour = (): string => {
+    if (!logs || logs.length === 0) return "No data logged yet";
 
-    // 🕒 CALCULATE TRAFFIC PEAK DENSE SLOTS
     const hourTally: { [key: number]: number } = {};
     logs.forEach((log) => {
-      const hour = new Date(log.addedAt).getHours();
+      const logDate =
+        typeof log.addedAt === "number" ? new Date(log.addedAt) : new Date();
+      const hour = logDate.getHours();
       hourTally[hour] = (hourTally[hour] || 0) + 1;
     });
 
@@ -56,19 +51,11 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
       }
     });
 
-    return {
-      avg: `${avgMins > 0 ? avgMins : 1} mins`,
-      best: `${bestMins > 0 ? bestMins : 1} mins`,
-      worst: `${worstMins > 0 ? worstMins : 1} mins`,
-      peakHour: peakHourStr,
-    };
+    return peakHourStr;
   };
 
-  const metrics = getMetrics();
-
   return (
-    <div className="max-w-4xl mx-auto p-6 md:p-8 space-y-6 animate-in slide-in-from-bottom-4 duration-300">
-      {/* 🚀 FIXED HEADER ACTIONS ROW */}
+    <div className="max-w-7xl w-full mx-auto px-4 md:px-8 py-6 space-y-6 animate-in slide-in-from-bottom-4 duration-300">
       <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-zinc-900">
@@ -87,7 +74,6 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
         </button>
       </div>
 
-      {/* METRIC ANALYTICS CARDS GRID SYSTEM */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* CARD 1: VELOCITY AVERAGE */}
         <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
@@ -99,7 +85,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           </div>
           <div className="mt-4">
             <h3 className="text-2xl font-black text-zinc-900 tracking-tight leading-none">
-              {metrics.avg}
+              {averageWaitTime}
             </h3>
             <p className="text-[10px] text-zinc-400 mt-1 font-medium">
               Mean customer pipeline speed.
@@ -107,7 +93,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           </div>
         </div>
 
-        {/* CARD 2: TOTAL CAPACITY processed */}
+        {/* CARD 2: THROUGHPUT CAPACITY */}
         <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[11px] font-bold uppercase tracking-wider">
@@ -117,7 +103,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           </div>
           <div className="mt-4">
             <h3 className="text-2xl font-black text-zinc-900 tracking-tight leading-none">
-              {logs.length} Served
+              {totalCompletedCount} Served
             </h3>
             <p className="text-[10px] text-zinc-400 mt-1 font-medium">
               Completed interactions today.
@@ -125,7 +111,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           </div>
         </div>
 
-        {/* CARD 3: BEST RECORD SPEED */}
+        {/* CARD 3: RECORD VELOCITY */}
         <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[11px] font-bold uppercase tracking-wider">
@@ -135,7 +121,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           </div>
           <div className="mt-4">
             <h3 className="text-2xl font-black text-emerald-600 tracking-tight leading-none">
-              {metrics.best}
+              {bestWaitTime}
             </h3>
             <p className="text-[10px] text-zinc-400 mt-1 font-medium">
               Fastest transaction speed log.
@@ -153,7 +139,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           </div>
           <div className="mt-4">
             <h3 className="text-2xl font-black text-red-600 tracking-tight leading-none">
-              {metrics.worst}
+              {worstWaitTime}
             </h3>
             <p className="text-[10px] text-zinc-400 mt-1 font-medium">
               Slowest ticket response capture.
@@ -162,7 +148,6 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
         </div>
       </div>
 
-      {/* 🕒 TRAFFIC FLOW HOURLY WINDOW BANNER */}
       <div className="bg-gradient-to-r from-zinc-900 to-zinc-800 text-white rounded-2xl p-6 shadow-sm border border-zinc-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h4 className="text-xs font-bold uppercase tracking-wider text-orange-500 flex items-center gap-1.5">
@@ -173,7 +158,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           </p>
         </div>
         <div className="px-4 py-2 bg-white/10 border border-white/15 font-mono text-xs font-bold text-orange-400 rounded-xl shrink-0">
-          {metrics.peakHour}
+          {calculatePeakHour()}
         </div>
       </div>
     </div>

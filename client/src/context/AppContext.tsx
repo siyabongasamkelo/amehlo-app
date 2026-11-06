@@ -6,7 +6,7 @@ import React, {
   useRef,
 } from "react";
 import { useUser } from "@clerk/clerk-react";
-import { io, Socket } from "socket.io-client"; // ➔ Import the WebSocket client library
+import { io, Socket } from "socket.io-client";
 import { userService } from "../features/user/userService";
 import type { IUserData } from "../features/user/userService";
 import { companyService } from "../features/company/services/companyService";
@@ -26,6 +26,14 @@ interface AppContextType {
   queue: IQueueItem[];
   completedLogs: IQueueItem[];
   isLoadingQueue: boolean;
+
+  bestWaitTime: string;
+  worstWaitTime: string;
+  rawAnalyticsLogs: any[];
+  averageWaitTime: string;
+  totalCompletedCount: number;
+  syncAndHydrateProfile: (inviteCode?: string) => Promise<void>;
+
   setActiveBranchId: (id: string | null) => void;
   loadLiveQueueMetrics: (branchId: string) => Promise<void>;
   insertQueueReal: (name: string, phone: string) => Promise<void>;
@@ -33,15 +41,17 @@ interface AppContextType {
     ticketId: string,
     status: "Waiting" | "Active" | "Completed" | "Absent",
   ) => Promise<void>;
-  syncAndHydrateProfile: () => Promise<void>;
+  // syncAndHydrateProfile: () => Promise<void>;
   loadCompanyBranches: (companyId: string) => Promise<void>;
   setActiveCompany: (company: ICompanyData | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// 🔒 ROOT LEVEL OUT-OF-RENDER INITIALIZATION
-const SOCKET_URL = "http://localhost:5000";
+const SOCKET_URL =
+  import.meta.env.MODE === "development"
+    ? "http://localhost:5000"
+    : "https://onrender.com";
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -54,41 +64,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoadingQueue, setIsLoadingQueue] = useState<boolean>(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
   const [isLoadingBranches, setIsLoadingBranches] = useState<boolean>(false);
-  const [completedLogs, setCompletedLogs] = useState<IQueueItem[]>([]);
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
+
+  // ⚡ COMPUTE STATE MANAGEMENT UNITS
+  const [totalCompletedCount, setTotalCompletedCount] = useState<number>(0);
+  const [averageWaitTime, setAverageWaitTime] = useState<string>("0 mins");
+  const [bestWaitTime, setBestWaitTime] = useState<string>("0 mins");
+  const [worstWaitTime, setWorstWaitTime] = useState<string>("0 mins");
+  const [rawAnalyticsLogs, setRawAnalyticsLogs] = useState<any[]>([]);
 
   const isHydratingRef = useRef<boolean>(false);
   const lastSyncedClerkIdRef = useRef<string | null>(null);
+  const socketRef = useRef<Socket | null>(null);
 
-  // 📞 STATIC SOCKET REFS PERSISTING ACROSS SESSIONS
-  const socketRef = useRef<typeof Socket | null>(null);
-
-  // ➔ Initial Static Fallback Loader (Only run for fresh layout changes or boots)
+  // ➔ Initial Static Fallback Loader
   const loadLiveQueueMetrics = async (branchId: string) => {
     setIsLoadingQueue(true);
     try {
-      const liveTickets = await queueService.getBranchQueue(branchId);
+      const [liveTickets, analyticsData] = await Promise.all([
+        queueService.getBranchQueue(branchId),
+        queueService.getBranchAnalytics(branchId),
+      ]);
+
+      // 🎯 FIXED: Fully unblocked by applying the updated interface matching your backend payload
       setQueue(liveTickets);
-      setCompletedLogs([]);
+      setAverageWaitTime(analyticsData?.averageWaitTime || "0 mins");
+      setBestWaitTime(analyticsData?.bestWaitTime || "0 mins");
+      setWorstWaitTime(analyticsData?.worstWaitTime || "0 mins");
+      setTotalCompletedCount(analyticsData?.totalCompleted || 0);
+      setRawAnalyticsLogs(analyticsData?.rawLogs || []);
     } catch (err) {
-      console.error("Initial queue hydration failure:", err);
-    } finally {
+      console.error("Queue monitoring synchronization fault:", err);
+    }
+    bits: {
       setIsLoadingQueue(false);
     }
   };
 
-  // ➔ Create a real entry via legacy service fallback mapping
   const insertQueueReal = async (name: string, phone: string) => {
     if (!activeBranchId) return;
     try {
-      // Backend automatically broadcasts updates to everyone over socket after this triggers
       await queueService.insertTicket(activeBranchId, name, phone);
     } catch (err) {
       console.error("Failed inserting item to network path:", err);
       throw err;
     }
   };
-  // ➔ Real-time action requests sent directly onto HTTP handlers (Sockets intercept the response stream)
+
   const updateQueueStatusReal = async (
     ticketId: string,
     status: "Waiting" | "Active" | "Completed" | "Absent",
@@ -119,7 +141,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const syncAndHydrateProfile = async () => {
+  const syncAndHydrateProfile = async (inviteCode?: string) => {
     if (!clerkUser?.id || isHydratingRef.current) return;
 
     isHydratingRef.current = true;
@@ -134,14 +156,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           console.log(
             "New user detected in Clerk, performing lazy database sync...",
           );
-          const registrationRole =
-            (clerkUser.publicMetadata?.role as string) || "owner";
+
+          // ⚡ AUTOMATED ROLE RESOLUTION DETERMINATION ENGINE:
+          // If an invite code token exists, register them as a worker node, otherwise create an owner path
+          const registrationRole = inviteCode?.trim()
+            ? "worker"
+            : (clerkUser.publicMetadata?.role as string) || "owner";
 
           userProfile = await userService.syncClerkUser({
             clerkId: clerkUser.id,
             name: clerkUser.fullName || clerkUser.username || "Anonymous Node",
             email: clerkUser.primaryEmailAddress?.emailAddress || "",
-            role: registrationRole,
+            role: registrationRole as "owner" | "worker",
+            inviteCode: inviteCode?.trim() || undefined, // Pass token code metrics downstream to backend if active
           });
         } else {
           throw err;
@@ -163,9 +190,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // 📡 PERSISTENT BACKGROUND WEBSOCKET CONNECTION LIFECYCLE
+  // 📡 WEBSOCKET CONNECTION LIFECYCLE MANAGEMENT LOOP
   useEffect(() => {
-    // Open a single telephone pipe directly to the Express backend memory layer
     const socket = io(SOCKET_URL);
     socketRef.current = socket;
 
@@ -173,28 +199,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log("Websocket hardware layer linked successfully:", socket.id);
     });
 
-    // 🎯 THE FIX: Listen for broadcast events from your controller to change state instantly
-    socket.on("queue_updated", (updatedQueue: IQueueItem[]) => {
-      console.log(
-        "Real-time pipeline data stream update packet arrived:",
-        updatedQueue,
-      );
-      setQueue(updatedQueue); // Overwrites state cleanly without any loading flashes
+    socket.on("queue_updated", () => {
+      if (activeBranchId) {
+        console.log(
+          "Real-time network event heard. Re-hydrating analytics logs...",
+        );
+        loadLiveQueueMetrics(activeBranchId);
+      }
     });
 
     return () => {
       socket.disconnect();
-      console.log("Persistent socket line closed safely.");
     };
-  }, []);
+  }, [activeBranchId]);
 
   // 🚪 LOCATION ROOM CHANNELS LIFE SWITCH
   useEffect(() => {
     if (activeBranchId && socketRef.current) {
-      // Pull initial dataset for the new physical station workspace node
       loadLiveQueueMetrics(activeBranchId);
-
-      // Inform the server node to lock this browser context into the branch cluster channel
       socketRef.current.emit("join_branch_room", activeBranchId);
     }
   }, [activeBranchId]);
@@ -238,7 +260,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         isLoadingBranches,
         activeBranchId,
         queue,
-        completedLogs,
+        completedLogs: [],
         isLoadingQueue,
         setActiveBranchId,
         loadLiveQueueMetrics,
@@ -247,6 +269,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         syncAndHydrateProfile,
         loadCompanyBranches,
         setActiveCompany,
+        averageWaitTime,
+        totalCompletedCount,
+        bestWaitTime,
+        worstWaitTime,
+        rawAnalyticsLogs,
       }}
     >
       {children}

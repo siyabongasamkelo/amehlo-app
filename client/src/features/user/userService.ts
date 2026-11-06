@@ -1,13 +1,19 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/users";
+// const API_URL = "http://localhost:5000/api/users";
+
+const API_URL =
+  import.meta.env.MODE === "development"
+    ? "http://localhost:5000/api/users"
+    : "https://amehlo-app.onrender.com/api/users";
 
 export interface IUserData {
   _id: string;
   clerkId: string;
   name: string;
   email: string;
-  role: string;
+  role: "owner" | "worker";
+  inviteCode?: string;
 }
 
 export const userService = {

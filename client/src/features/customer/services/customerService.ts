@@ -1,7 +1,12 @@
 import axios from "axios";
 import type { IQueueItem } from "../../queue/services/queueService";
 
-const API_URL = "http://localhost:5000/api/queue";
+// const API_URL = "http://localhost:5000/api/queue";
+
+const API_URL =
+  import.meta.env.MODE === "development"
+    ? "http://localhost:5000/api/queue"
+    : "https://amehlo-app.onrender.com/api/queue";
 
 export const customerService = {
   // ➔ Let a guest customer join the branch line directly via their mobile browser

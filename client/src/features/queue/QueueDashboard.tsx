@@ -28,14 +28,17 @@ export const QueueDashboard: React.FC = () => {
     branches,
     activeBranchId,
     queue,
-    completedLogs,
+    // completedLogs,
+    rawAnalyticsLogs,
     isLoadingQueue,
     setActiveBranchId,
     insertQueueReal,
     updateQueueStatusReal,
+    averageWaitTime,
+    totalCompletedCount,
+    bestWaitTime,
+    worstWaitTime,
   } = useApp();
-
-  console.log("queue", queue);
 
   const [isFullscreenDisplay, setIsFullscreenDisplay] =
     useState<boolean>(false);
@@ -55,17 +58,6 @@ export const QueueDashboard: React.FC = () => {
   const [contactPhone, setContactPhone] = useState<string>(
     currentBranch?.phone || "035 111 2222",
   );
-
-  const calculateAverageWaitTime = (): string => {
-    if (completedLogs.length === 0) return "15 mins";
-    const totalDurationMs = completedLogs.reduce(
-      (acc, current) =>
-        acc + (Number(current.completedAt) - Number(current.addedAt)),
-      0,
-    );
-    const averageMinutes = Math.round(totalDurationMs / 1000 / 60);
-    return averageMinutes > 0 ? `${averageMinutes} mins` : "1 min";
-  };
 
   if (isFullscreenDisplay) {
     return (
@@ -95,7 +87,11 @@ export const QueueDashboard: React.FC = () => {
   if (isAnalyticsOpen && user?.role === "owner") {
     return (
       <AnalyticsPanel
-        logs={completedLogs}
+        logs={rawAnalyticsLogs} // Pass the variable we just destructured up top
+        averageWaitTime={averageWaitTime}
+        bestWaitTime={bestWaitTime}
+        worstWaitTime={worstWaitTime}
+        totalCompletedCount={totalCompletedCount}
         businessName={currentBranch?.name || "Terminal Station"}
         onClose={() => setIsAnalyticsOpen(false)}
       />
@@ -251,7 +247,7 @@ export const QueueDashboard: React.FC = () => {
               Avg Processing Time
             </p>
             <p className="text-2xl font-black mt-1 text-zinc-900">
-              {calculateAverageWaitTime()}
+              {averageWaitTime}
             </p>
           </div>
           <div className="p-3 bg-zinc-50 rounded-xl text-zinc-500 border border-zinc-100">
@@ -265,7 +261,7 @@ export const QueueDashboard: React.FC = () => {
               Total Output Served
             </p>
             <p className="text-2xl font-black mt-1 text-emerald-600">
-              {completedLogs.length} Completed
+              {totalCompletedCount} Completed
             </p>
           </div>
           <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600">

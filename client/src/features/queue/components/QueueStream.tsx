@@ -67,20 +67,20 @@ export const QueueStream: React.FC<QueueStreamProps> = ({
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Name:</span>
                       <span className="font-bold text-zinc-700">
-                        {item.profile?.name}
+                        {item?.name}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Phone:</span>
                       <span className="font-semibold text-zinc-600">
-                        {item.profile?.phone}
+                        {item?.phone}
                       </span>
                     </div>
-                    {item.profile?.email && (
+                    {item?.email && (
                       <div className="flex justify-between">
                         <span className="text-zinc-400">Email:</span>
                         <span className="text-zinc-500 truncate max-w-[180px]">
-                          {item.profile.email}
+                          {item?.email}
                         </span>
                       </div>
                     )}

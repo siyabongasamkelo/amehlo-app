@@ -22,7 +22,7 @@
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
+    // 🎯 THE FIX: Completely delete the "erasableSyntaxOnly" line that was right here!
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"]
