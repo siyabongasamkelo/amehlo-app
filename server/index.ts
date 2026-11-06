@@ -32,8 +32,12 @@ app.get("/health", (req, res) => {
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "*", // Matches your catch-all app CORS policy perfectly
-    methods: ["GET", "POST", "DELETE", "PATCH"],
+    origin: [
+      "http://localhost:5173", // Allows your local Vite development server
+      "amehlo-queue.netlify.app", // Add your live frontend URL here once deployed!
+    ],
+    methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
