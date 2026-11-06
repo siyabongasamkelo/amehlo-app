@@ -39,7 +39,11 @@ export const CustomerJoinGateway: React.FC = () => {
     if (!branchId || !myTicket || myTicket.status === "Completed") return;
 
     // Connect to live production or development string cleanly
-    const socket = io(SOCKET_URL, { withCredentials: true });
+    const socket = io(SOCKET_URL, {
+      transports: ["websocket"], // 👈 Force native websocket pipelines directly!
+      withCredentials: true,
+      upgrade: false,
+    });
 
     socket.on("connect", () => {
       socket.emit("join_branch_room", branchId);
@@ -49,12 +53,11 @@ export const CustomerJoinGateway: React.FC = () => {
     socket.on("queue_updated", (updatedQueue: any) => {
       console.log("Ameblo network shift received stream:", updatedQueue);
 
-      // Ensure payload parsing handles array structural variations gracefully
       const queueArray = Array.isArray(updatedQueue)
         ? updatedQueue
         : updatedQueue?.queue || [];
 
-      // CRITICAL ROBUST MATCH: Fallback to the rolling ticketId string if MongoDB _id skips a match
+      // Find this phone's ticket placement coordinate in the active stream array
       const freshRecord = queueArray.find(
         (t: any) =>
           (t._id &&
@@ -65,12 +68,10 @@ export const CustomerJoinGateway: React.FC = () => {
 
       if (freshRecord) {
         console.log(
-          `Match found! Updating position tracking coordinate to: Pos #${freshRecord.position}`,
+          `Match found! Updating position: Pos #${freshRecord.position}`,
         );
         setLivePosition(freshRecord.position);
 
-        // Update the phone cache container with the updated sequence payload
-        // This makes sure if they refresh right now, they boot up with the NEW position!
         const updatedTicketMemory = {
           ...myTicket,
           position: freshRecord.position,
@@ -80,13 +81,21 @@ export const CustomerJoinGateway: React.FC = () => {
           JSON.stringify(updatedTicketMemory),
         );
       } else {
-        // 🎯 FIX: EXPLICITLY EVACUATE STORAGE FIRST BEFORE SHUTTING DOWN STATE
-        console.log("Ticket missing from stream. Wiping cache immediately.");
+        // 🎯 THE BULLETPROOF EVICTION INTERCEPTOR
+        console.log(
+          "Ticket missing from active branch pipeline array. Executing hard exit.",
+        );
 
-        localStorage.removeItem("amehlo_active_ticket"); // 👈 1. Clear storage first!
+        // 1. Wipe the disk memory instantly before touching any React rendering parameters
+        localStorage.removeItem("amehlo_active_ticket");
 
-        setLivePosition(null); // 👈 2. Reset coordinates
-        setMyTicket({ ...myTicket, status: "Completed" }); // 👈 3. Mutate state last to safely break the socket lifecycle hook
+        // 2. Clear visual coordinate elements
+        setLivePosition(null);
+
+        // 3. Gracefully switch layouts without triggering a connection loop crash
+        setMyTicket((prev: any) =>
+          prev ? { ...prev, status: "Completed" } : null,
+        );
       }
     });
 
