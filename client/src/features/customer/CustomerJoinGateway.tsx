@@ -16,44 +16,69 @@ export const CustomerJoinGateway: React.FC = () => {
   // System States
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [myTicket, setMyTicket] = useState<any | null>(null);
-  const [livePosition, setLivePosition] = useState<number | null>(null);
 
+  // 🎯 FIX 1: AUTO-MEMORY HYDRATION ON PAGE REFRESH
+  const [myTicket, setMyTicket] = useState<any | null>(() => {
+    const saved = localStorage.getItem("amehlo_active_ticket");
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [livePosition, setLivePosition] = useState<number | null>(() => {
+    const saved = localStorage.getItem("amehlo_active_ticket");
+    return saved ? JSON.parse(saved).position : null;
+  });
+
+  // 🎯 FIX 2: ROUTING ENVIRONMENT MANAGEMENT MATCHING APPLICATION CONTEXT
   const SOCKET_URL =
     import.meta.env.VITE_APP_ENV === "development"
       ? "http://localhost:5000"
       : "https://onrender.com";
 
-  const socket = io(SOCKET_URL, {
-    withCredentials: true,
-  });
-
-  // 📡 Connect the customer's phone to the active WebSocket room channel
+  // Connect the customer's phone to the active WebSocket room channel safely
   useEffect(() => {
-    if (!branchId || !myTicket) return;
+    if (!branchId || !myTicket || myTicket.status === "Completed") return;
+
+    // Connect to live production or development string cleanly
+    const socket = io(SOCKET_URL, { withCredentials: true });
 
     socket.on("connect", () => {
       socket.emit("join_branch_room", branchId);
     });
 
-    // ⚡ LISTEN REAL-TIME: If the admin ticks the queue, update the customer's position instantly
-    socket.on("queue_updated", (updatedQueue: any[]) => {
-      const freshRecord = updatedQueue.find((t) => t._id === myTicket._id);
+    // LISTEN REAL-TIME: Process raw data stream safely
+    socket.on("queue_updated", (updatedQueue: any) => {
+      console.log("Ameblo network shift received stream:", updatedQueue);
+
+      // Ensure payload parsing handles variations gracefully
+      const queueArray = Array.isArray(updatedQueue)
+        ? updatedQueue
+        : updatedQueue?.queue || [];
+
+      // Match using MongoDB ID parameters or ticket numbers
+      const freshRecord = queueArray.find(
+        (t: any) => t._id === myTicket._id || t.ticketId === myTicket.ticketId,
+      );
+
       if (freshRecord) {
         setLivePosition(freshRecord.position);
+        // Cache the newest sequential tracking coordinate state locally
+        localStorage.setItem(
+          "amehlo_active_ticket",
+          JSON.stringify(freshRecord),
+        );
       } else {
-        // If the ticket is missing from the active array, the admin has marked it completed!
+        // If the ticket is missing entirely from the active lane, they're served!
         setLivePosition(null);
         setMyTicket((prev: any) =>
           prev ? { ...prev, status: "Completed" } : null,
         );
+        localStorage.removeItem("amehlo_active_ticket");
       }
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [branchId, myTicket?._id]);
+  }, [branchId, myTicket?._id, myTicket?.status]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,9 +97,12 @@ export const CustomerJoinGateway: React.FC = () => {
         phone.trim(),
         email.trim() || undefined,
       );
+
+      // 🎯 CACHE ON FRESH INITIAL REGISTRATION
+      localStorage.setItem("amehlo_active_ticket", JSON.stringify(ticket));
+
       setMyTicket(ticket);
       setLivePosition(ticket.position);
-      socket.emit("customer_joined_queue", { branchId, ticket });
     } catch (err: any) {
       console.error("Mobile terminal check-in fault:", err);
       setError(
