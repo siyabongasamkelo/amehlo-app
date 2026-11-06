@@ -166,3 +166,52 @@ export const getBranchQueue = async (
     res.status(500).json({ error: error.message });
   }
 };
+
+// ➔ FETCH QUEUE METRICS & ADVANCED ANALYTICS (GET /api/queue/:branchId/analytics)
+export const getBranchQueueAnalytics = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { branchId } = req.params;
+    const logs = await CompletionLog.find({ branchId });
+
+    if (logs.length === 0) {
+      res.status(200).json({
+        averageWaitTime: "0 mins",
+        bestWaitTime: "0 mins",
+        worstWaitTime: "0 mins",
+        totalCompleted: 0,
+        rawLogs: [],
+      });
+      return;
+    }
+
+    const durations = logs.map((log) => {
+      const added =
+        typeof log.addedAt === "number"
+          ? log.addedAt
+          : new Date(log.addedAt).getTime();
+      const completed =
+        typeof log.completedAt === "number"
+          ? log.completedAt
+          : new Date(log.completedAt).getTime();
+      return (completed - added) / 1000 / 60; // in minutes
+    });
+
+    const totalDurationMins = durations.reduce((acc, curr) => acc + curr, 0);
+    const avgMins = Math.round(totalDurationMins / logs.length);
+    const bestMins = Math.round(Math.min(...durations));
+    const worstMins = Math.round(Math.max(...durations));
+
+    res.status(200).json({
+      averageWaitTime: `${avgMins > 0 ? avgMins : 1} mins`,
+      bestWaitTime: `${bestMins > 0 ? bestMins : 1} mins`,
+      worstWaitTime: `${worstMins > 0 ? worstMins : 1} mins`,
+      totalCompleted: logs.length,
+      rawLogs: logs, // Send raw logs purely for localized peak hour tracking charts
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
