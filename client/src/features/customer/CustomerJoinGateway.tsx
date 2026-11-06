@@ -80,15 +80,13 @@ export const CustomerJoinGateway: React.FC = () => {
           JSON.stringify(updatedTicketMemory),
         );
       } else {
-        // If we've parsed a clean array and this ticket code is missing entirely, they've been served!
-        console.log(
-          "Ticket missing from active array stream. Archiving session.",
-        );
-        setLivePosition(null);
-        setMyTicket((prev: any) =>
-          prev ? { ...prev, status: "Completed" } : null,
-        );
-        localStorage.removeItem("amehlo_active_ticket");
+        // 🎯 FIX: EXPLICITLY EVACUATE STORAGE FIRST BEFORE SHUTTING DOWN STATE
+        console.log("Ticket missing from stream. Wiping cache immediately.");
+
+        localStorage.removeItem("amehlo_active_ticket"); // 👈 1. Clear storage first!
+
+        setLivePosition(null); // 👈 2. Reset coordinates
+        setMyTicket({ ...myTicket, status: "Completed" }); // 👈 3. Mutate state last to safely break the socket lifecycle hook
       }
     });
 
@@ -97,8 +95,8 @@ export const CustomerJoinGateway: React.FC = () => {
     };
   }, [branchId, myTicket?._id, myTicket?.status]);
 
-  // 🧨 EMERGENCY HARD DEPLOYMENT WIPE RUN
-  // This fires exactly once on boot, clears your phone cache, and stops.
+  //🧨 EMERGENCY HARD DEPLOYMENT WIPE RUN
+  //This fires exactly once on boot, clears your phone cache, and stops.
   useEffect(() => {
     console.log("Executing hard cache eviction cycle...");
     localStorage.clear();
