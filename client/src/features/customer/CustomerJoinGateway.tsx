@@ -12,6 +12,7 @@ export const CustomerJoinGateway: React.FC = () => {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [isLeaving, setIsLeaving] = useState(false);
 
   // System States
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,6 +131,36 @@ export const CustomerJoinGateway: React.FC = () => {
     }
   };
 
+  const handleLeaveQueue = async () => {
+    if (!myTicket?._id) return;
+
+    const confirmLeave = window.confirm(
+      "Are you sure you want to leave the queue? You will lose your spot entirely.",
+    );
+    if (!confirmLeave) return;
+
+    setIsLeaving(true);
+    try {
+      // 1. Tell backend to drop the ticket and re-sequence the branch line
+      await customerService.leaveQueueFromMobile(myTicket._id);
+
+      // 2. Clear out phone memory amnesia tracking safely
+      localStorage.removeItem("amehlo_active_ticket");
+
+      // 3. Reset all frontend variables to drop back to Screen State A (Registration)
+      setMyTicket(null);
+      setLivePosition(null);
+      setName("");
+      setPhone("");
+      setEmail("");
+    } catch (err) {
+      console.error("Failed to cleanly exit tracking pipeline:", err);
+      alert("Could not remove you from the live line. Please try again.");
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+
   if (!branchId) {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4">
@@ -200,6 +231,22 @@ export const CustomerJoinGateway: React.FC = () => {
             {myTicket.status !== "Completed" &&
               "Keep this window open. Your terminal tracking coordinates sync automatically via event-driven channels."}
           </p>
+          {myTicket.status !== "Completed" && (
+            <div className="pt-2">
+              <button
+                type="button"
+                disabled={isLeaving}
+                onClick={handleLeaveQueue}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold h-10 text-xs tracking-tight transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                {isLeaving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  "Leave Queue & Cancel Spot"
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );

@@ -24,4 +24,8 @@ export const customerService = {
     });
     return response.data.ticket;
   },
+
+  leaveQueueFromMobile: async (ticketId: string): Promise<void> => {
+    await axios.delete(`${API_URL}/${ticketId}/ghost`);
+  },
 };
