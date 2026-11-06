@@ -1,9 +1,9 @@
 import React from "react";
 import { Clock, UserMinus, CheckCircle2 } from "lucide-react";
-import type { QueueItem } from "../types/queue";
+import type { IQueueItem } from "../services/queueService";
 
 interface QueueStreamProps {
-  queue: QueueItem[];
+  queue: IQueueItem[];
   onSkip: (id: string) => void;
   onComplete: (id: string) => void;
 }
@@ -35,7 +35,7 @@ export const QueueStream: React.FC<QueueStreamProps> = ({
             const isActive = item.status === "Active";
             return (
               <div
-                key={item.id}
+                key={item._id}
                 className={`min-w-[290px] md:min-w-[330px] snap-start rounded-2xl border p-5 flex flex-col justify-between transition-all duration-300 relative overflow-hidden shrink-0 shadow-sm ${
                   isActive
                     ? "bg-white border-emerald-500 shadow-md shadow-emerald-50"
@@ -49,7 +49,7 @@ export const QueueStream: React.FC<QueueStreamProps> = ({
                         TICKET NUMBER
                       </div>
                       <h3 className="font-black text-xl text-zinc-900 tracking-tight leading-none mt-1">
-                        #{item.id}
+                        #{item.ticketId}
                       </h3>
                     </div>
                     <div
@@ -67,16 +67,16 @@ export const QueueStream: React.FC<QueueStreamProps> = ({
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Name:</span>
                       <span className="font-bold text-zinc-700">
-                        {item.profile.name}
+                        {item.profile?.name}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Phone:</span>
                       <span className="font-semibold text-zinc-600">
-                        {item.profile.phone}
+                        {item.profile?.phone}
                       </span>
                     </div>
-                    {item.profile.email && (
+                    {item.profile?.email && (
                       <div className="flex justify-between">
                         <span className="text-zinc-400">Email:</span>
                         <span className="text-zinc-500 truncate max-w-[180px]">
@@ -86,13 +86,12 @@ export const QueueStream: React.FC<QueueStreamProps> = ({
                     )}
                     <div className="pt-1.5 border-t border-zinc-200/60 flex justify-between items-center text-[11px]">
                       <span className="text-zinc-400 flex items-center gap-1">
-                        <Clock className="h-3 w-3" />{" "}
-                        {isActive ? "Status Room:" : "Est. Wait Time:"}
+                        <Clock className="h-3 w-3" /> Status Room:
                       </span>
                       <span
                         className={`font-bold ${isActive ? "text-emerald-600" : "text-zinc-800"}`}
                       >
-                        {isActive ? item.elapsed : item.estWait}
+                        {item.status}
                       </span>
                     </div>
                   </div>
@@ -100,14 +99,14 @@ export const QueueStream: React.FC<QueueStreamProps> = ({
 
                 <div className="mt-5 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
                   <button
-                    onClick={() => onSkip(item.id)}
+                    onClick={() => onSkip(item._id)}
                     className="text-[11px] font-semibold text-zinc-500 hover:text-red-600 flex items-center gap-1 bg-zinc-50 hover:bg-red-50 px-2.5 py-1.5 rounded-lg border border-zinc-200 hover:border-red-200 transition-all cursor-pointer"
                   >
                     <UserMinus className="h-3.5 w-3.5" /> Move to Back
                   </button>
 
                   <button
-                    onClick={() => onComplete(item.id)}
+                    onClick={() => onComplete(item._id)}
                     className="text-[11px] font-semibold text-emerald-600 hover:text-white flex items-center gap-1 bg-emerald-50 hover:bg-emerald-600 px-2.5 py-1.5 rounded-lg border border-emerald-200 transition-all cursor-pointer w-1/2 justify-center"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5" /> Complete Turn

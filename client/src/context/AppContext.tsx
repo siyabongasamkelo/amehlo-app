@@ -1,213 +1,252 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import type { QueueItem, CompletionLog } from "../types/queue";
-
-// 1. DATA ENTITY BLUEPRINTS
-export interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  role: "owner" | "worker";
-  assignedBranchId?: string; // Workers are locked here
-}
-
-export interface BranchNode {
-  id: string;
-  name: string;
-  phone: string;
-  inviteCode: string;
-}
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
+import { useUser } from "@clerk/clerk-react";
+import { io, Socket } from "socket.io-client"; // ➔ Import the WebSocket client library
+import { userService } from "../features/user/userService";
+import type { IUserData } from "../features/user/userService";
+import { companyService } from "../features/company/services/companyService";
+import type { ICompanyData } from "../features/company/services/companyService";
+import type { IBranchData } from "../features/branch/services/branchService";
+import { branchService } from "../features/branch/services/branchService";
+import type { IQueueItem } from "../features/queue/services/queueService";
+import { queueService } from "../features/queue/services/queueService";
 
 interface AppContextType {
-  user: UserProfile | null;
-  branches: BranchNode[];
+  dbUser: IUserData | null;
+  activeCompany: ICompanyData | null;
+  branches: IBranchData[];
+  isLoadingProfile: boolean;
+  isLoadingBranches: boolean;
   activeBranchId: string | null;
-  queue: QueueItem[];
-  completedLogs: CompletionLog[];
-  loginSimulated: (name: string, email: string, inviteCode?: string) => void;
-  logoutSimulated: () => void;
-  addBranchSimulated: (name: string, phone: string) => void;
-  switchBranchSimulated: (id: string) => void;
-  insertQueueSimulated: (name: string, phone: string, email?: string) => void;
-  skipQueueSimulated: (id: string) => void;
-  completeQueueSimulated: (id: string) => void;
-  markAbsentSimulated: (id: string) => void; // 👻 Ghost client handler built-in!
+  queue: IQueueItem[];
+  completedLogs: IQueueItem[];
+  isLoadingQueue: boolean;
+  setActiveBranchId: (id: string | null) => void;
+  loadLiveQueueMetrics: (branchId: string) => Promise<void>;
+  insertQueueReal: (name: string, phone: string) => Promise<void>;
+  updateQueueStatusReal: (
+    ticketId: string,
+    status: "Waiting" | "Active" | "Completed" | "Absent",
+  ) => Promise<void>;
+  syncAndHydrateProfile: () => Promise<void>;
+  loadCompanyBranches: (companyId: string) => Promise<void>;
+  setActiveCompany: (company: ICompanyData | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// 🔒 ROOT LEVEL OUT-OF-RENDER INITIALIZATION
+const SOCKET_URL = "http://localhost:5000";
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // 2. PERSISTENCE LAYER SYNCHRONIZATION VIA LOCALSTORAGE
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem("amehlo_user");
-    return saved ? JSON.parse(saved) : null;
-  });
+  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const [dbUser, setDbUser] = useState<IUserData | null>(null);
+  const [activeCompany, setActiveCompany] = useState<ICompanyData | null>(null);
+  const [branches, setBranches] = useState<IBranchData[]>([]);
+  const [queue, setQueue] = useState<IQueueItem[]>([]);
+  const [isLoadingQueue, setIsLoadingQueue] = useState<boolean>(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
+  const [isLoadingBranches, setIsLoadingBranches] = useState<boolean>(false);
+  const [completedLogs, setCompletedLogs] = useState<IQueueItem[]>([]);
+  const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
 
-  const [branches, setBranches] = useState<BranchNode[]>(() => {
-    const saved = localStorage.getItem("amehlo_branches");
-    return saved
-      ? JSON.parse(saved)
-      : [
-          {
-            id: "br_1",
-            name: "Empangeni Central",
-            phone: "035 111 2222",
-            inviteCode: "AMHL-EMP-92",
-          },
-          {
-            id: "br_2",
-            name: "Richards Bay Mall",
-            phone: "035 222 3333",
-            inviteCode: "AMHL-RBY-14",
-          },
-        ];
-  });
+  const isHydratingRef = useRef<boolean>(false);
+  const lastSyncedClerkIdRef = useRef<string | null>(null);
 
-  const [activeBranchId, setActiveBranchId] = useState<string | null>(() => {
-    return localStorage.getItem("amehlo_active_branch") || "br_1";
-  });
+  // 📞 STATIC SOCKET REFS PERSISTING ACROSS SESSIONS
+  const socketRef = useRef<typeof Socket | null>(null);
 
-  const [queue, setQueue] = useState<QueueItem[]>([]);
-  const [completedLogs, setCompletedLogs] = useState<CompletionLog[]>([]);
+  // ➔ Initial Static Fallback Loader (Only run for fresh layout changes or boots)
+  const loadLiveQueueMetrics = async (branchId: string) => {
+    setIsLoadingQueue(true);
+    try {
+      const liveTickets = await queueService.getBranchQueue(branchId);
+      setQueue(liveTickets);
+      setCompletedLogs([]);
+    } catch (err) {
+      console.error("Initial queue hydration failure:", err);
+    } finally {
+      setIsLoadingQueue(false);
+    }
+  };
 
-  // Keep LocalStorage synchronized on mutations
+  // ➔ Create a real entry via legacy service fallback mapping
+  const insertQueueReal = async (name: string, phone: string) => {
+    if (!activeBranchId) return;
+    try {
+      // Backend automatically broadcasts updates to everyone over socket after this triggers
+      await queueService.insertTicket(activeBranchId, name, phone);
+    } catch (err) {
+      console.error("Failed inserting item to network path:", err);
+      throw err;
+    }
+  };
+  // ➔ Real-time action requests sent directly onto HTTP handlers (Sockets intercept the response stream)
+  const updateQueueStatusReal = async (
+    ticketId: string,
+    status: "Waiting" | "Active" | "Completed" | "Absent",
+  ) => {
+    if (!activeBranchId) return;
+    try {
+      if (status === "Waiting") {
+        await queueService.skipTurn(ticketId);
+      } else if (status === "Completed") {
+        await queueService.completeTurn(ticketId);
+      } else if (status === "Absent") {
+        await queueService.purgeGhostClient(ticketId);
+      }
+    } catch (err) {
+      console.error("Pipeline progression operational error:", err);
+    }
+  };
+
+  const loadCompanyBranches = async (companyId: string) => {
+    setIsLoadingBranches(true);
+    try {
+      const data = await branchService.getCompanyBranches(companyId);
+      setBranches(data);
+    } catch (err) {
+      console.error("Failed fetching physical stations:", err);
+    } finally {
+      setIsLoadingBranches(false);
+    }
+  };
+
+  const syncAndHydrateProfile = async () => {
+    if (!clerkUser?.id || isHydratingRef.current) return;
+
+    isHydratingRef.current = true;
+    setIsLoadingProfile(true);
+
+    try {
+      let userProfile;
+      try {
+        userProfile = await userService.getUserProfile(clerkUser.id);
+      } catch (err: any) {
+        if (err.response?.status === 404) {
+          console.log(
+            "New user detected in Clerk, performing lazy database sync...",
+          );
+          const registrationRole =
+            (clerkUser.publicMetadata?.role as string) || "owner";
+
+          userProfile = await userService.syncClerkUser({
+            clerkId: clerkUser.id,
+            name: clerkUser.fullName || clerkUser.username || "Anonymous Node",
+            email: clerkUser.primaryEmailAddress?.emailAddress || "",
+            role: registrationRole,
+          });
+        } else {
+          throw err;
+        }
+      }
+
+      setDbUser(userProfile);
+      lastSyncedClerkIdRef.current = clerkUser.id;
+
+      const companies = await companyService.getOwnerCompanies(userProfile._id);
+      if (companies.length > 0) {
+        setActiveCompany(companies[0]);
+      }
+    } catch (err) {
+      console.error("Critical Hydration Core structural breakdown:", err);
+    } finally {
+      setIsLoadingProfile(false);
+      isHydratingRef.current = false;
+    }
+  };
+
+  // 📡 PERSISTENT BACKGROUND WEBSOCKET CONNECTION LIFECYCLE
   useEffect(() => {
-    if (user) localStorage.setItem("amehlo_user", JSON.stringify(user));
-    else localStorage.removeItem("amehlo_user");
-  }, [user]);
+    // Open a single telephone pipe directly to the Express backend memory layer
+    const socket = io(SOCKET_URL);
+    socketRef.current = socket;
 
-  useEffect(() => {
-    localStorage.setItem("amehlo_branches", JSON.stringify(branches));
-  }, [branches]);
+    socket.on("connect", () => {
+      console.log("Websocket hardware layer linked successfully:", socket.id);
+    });
 
+    // 🎯 THE FIX: Listen for broadcast events from your controller to change state instantly
+    socket.on("queue_updated", (updatedQueue: IQueueItem[]) => {
+      console.log(
+        "Real-time pipeline data stream update packet arrived:",
+        updatedQueue,
+      );
+      setQueue(updatedQueue); // Overwrites state cleanly without any loading flashes
+    });
+
+    return () => {
+      socket.disconnect();
+      console.log("Persistent socket line closed safely.");
+    };
+  }, []);
+
+  // 🚪 LOCATION ROOM CHANNELS LIFE SWITCH
   useEffect(() => {
-    if (activeBranchId)
-      localStorage.setItem("amehlo_active_branch", activeBranchId);
+    if (activeBranchId && socketRef.current) {
+      // Pull initial dataset for the new physical station workspace node
+      loadLiveQueueMetrics(activeBranchId);
+
+      // Inform the server node to lock this browser context into the branch cluster channel
+      socketRef.current.emit("join_branch_room", activeBranchId);
+    }
   }, [activeBranchId]);
 
-  // 3. EMULATED ENGINE METHODS (FIGHTING COHESIVE SYSTEM LOGIC)
-  const loginSimulated = (name: string, email: string, inviteCode?: string) => {
-    const isWorker = inviteCode && inviteCode.trim() !== "";
-    const matchedBranch = branches.find(
-      (b) => b.inviteCode.toUpperCase() === inviteCode?.toUpperCase(),
-    );
-
-    const profile: UserProfile = {
-      id: `usr_${Date.now()}`,
-      name,
-      email,
-      role: isWorker ? "worker" : "owner",
-      assignedBranchId: isWorker ? matchedBranch?.id || "br_1" : undefined,
-    };
-
-    setUser(profile);
-    if (isWorker) {
-      setActiveBranchId(matchedBranch?.id || "br_1");
+  useEffect(() => {
+    if (branches.length > 0 && !activeBranchId) {
+      setActiveBranchId(branches[0]._id);
     }
-  };
+  }, [branches, activeBranchId]);
 
-  const logoutSimulated = () => {
-    setUser(null);
-    setQueue([]);
-    setCompletedLogs([]);
-    localStorage.removeItem("amehlo_user");
-  };
-
-  const addBranchSimulated = (name: string, phone: string) => {
-    const slug = name.substring(0, 3).toUpperCase();
-    const newBranch: BranchNode = {
-      id: `br_${Date.now()}`,
-      name,
-      phone,
-      inviteCode: `AMHL-${slug}-${Math.floor(10 + Math.random() * 90)}`,
-    };
-    setBranches([...branches, newBranch]);
-    setActiveBranchId(newBranch.id); // Auto jump into newly provisioned cluster
-  };
-
-  const switchBranchSimulated = (id: string) => {
-    if (user?.role === "worker") return; // Security boundary guard
-    setActiveBranchId(id);
-    setQueue([]); // Clear transient client lanes on system switches
-  };
-
-  // 4. TRANSITIONAL ENGINE FOR QUEUE MANAGEMENT PIPELINE
-  const resequence = (list: QueueItem[]): QueueItem[] => {
-    return list.map((item, idx) => ({
-      ...item,
-      position: idx + 1,
-      status: idx === 0 ? "Active" : idx === 1 ? "Up Next" : "Waiting",
-      estWait:
-        idx === 0
-          ? "At Front"
-          : idx === 1
-            ? "Next up"
-            : `${(idx - 1) * 15} mins est.`,
-    }));
-  };
-
-  const insertQueueSimulated = (
-    name: string,
-    phone: string,
-    email?: string,
-  ) => {
-    const nextTicket = Math.floor(100 + Math.random() * 900);
-    const newEntry: QueueItem = {
-      id: String(nextTicket),
-      profile: { id: `cust_${Date.now()}`, name, phone, email },
-      position: queue.length + 1,
-      status: "Waiting",
-      timestampAdded: Date.now(),
-    };
-    setQueue(resequence([...queue, newEntry]));
-  };
-
-  const skipQueueSimulated = (id: string) => {
-    const updated = [...queue];
-    const targetIdx = updated.findIndex((i) => i.id === id);
-    if (targetIdx === -1) return;
-    const [item] = updated.splice(targetIdx, 1);
-    updated.push(item);
-    setQueue(resequence(updated));
-  };
-
-  const completeQueueSimulated = (id: string) => {
-    const target = queue.find((i) => i.id === id);
-    if (target) {
-      setCompletedLogs((prev) => [
-        {
-          id: target.id,
-          addedAt: target.timestampAdded,
-          completedAt: Date.now(),
-        },
-        ...prev,
-      ]);
+  useEffect(() => {
+    if (activeCompany?._id) {
+      loadCompanyBranches(activeCompany._id);
+    } else {
+      setBranches([]);
     }
-    setQueue(resequence(queue.filter((i) => i.id !== id)));
-  };
+  }, [activeCompany?._id]);
 
-  const markAbsentSimulated = (id: string) => {
-    // 👻 Drop ghost client cleanly out of live stack loops without logging as completed throughput
-    setQueue(resequence(queue.filter((i) => i.id !== id)));
-  };
+  useEffect(() => {
+    const clerkIdString = clerkUser?.id;
+
+    if (isClerkLoaded && clerkIdString) {
+      if (lastSyncedClerkIdRef.current === clerkIdString) return;
+      syncAndHydrateProfile();
+    } else if (isClerkLoaded && !clerkIdString) {
+      setDbUser(null);
+      setActiveCompany(null);
+      setBranches([]);
+      lastSyncedClerkIdRef.current = null;
+      setIsLoadingProfile(false);
+    }
+  }, [clerkUser?.id, isClerkLoaded]);
 
   return (
     <AppContext.Provider
       value={{
-        user,
+        dbUser,
+        activeCompany,
         branches,
+        isLoadingProfile,
+        isLoadingBranches,
         activeBranchId,
         queue,
         completedLogs,
-        loginSimulated,
-        logoutSimulated,
-        addBranchSimulated,
-        switchBranchSimulated,
-        insertQueueSimulated,
-        skipQueueSimulated,
-        completeQueueSimulated,
-        markAbsentSimulated,
+        isLoadingQueue,
+        setActiveBranchId,
+        loadLiveQueueMetrics,
+        insertQueueReal,
+        updateQueueStatusReal,
+        syncAndHydrateProfile,
+        loadCompanyBranches,
+        setActiveCompany,
       }}
     >
       {children}
@@ -217,9 +256,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
 export const useApp = () => {
   const context = useContext(AppContext);
-  if (!context)
-    throw new Error(
-      "useApp must be utilized within an AppProvider context shell.",
-    );
+  if (!context) throw new Error("useApp must be used within an AppProvider");
   return context;
 };

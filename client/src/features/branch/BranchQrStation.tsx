@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { QRCodeSVG } from "qrcode.react"; // 🚀 Ultra-lightweight vector engine
+import { QRCodeSVG } from "qrcode.react";
 import { Printer, QrCode } from "lucide-react";
 
 interface BranchQrStationProps {
