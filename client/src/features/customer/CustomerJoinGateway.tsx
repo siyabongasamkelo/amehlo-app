@@ -13,6 +13,9 @@ export const CustomerJoinGateway: React.FC = () => {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [isLeaving, setIsLeaving] = useState(false);
+  const [socketStatus, setSocketStatus] = useState<string>(
+    "Initializing network connection...",
+  );
 
   // System States
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,6 +41,8 @@ export const CustomerJoinGateway: React.FC = () => {
   useEffect(() => {
     if (!branchId || !myTicket || myTicket.status === "Completed") return;
 
+    setSocketStatus(`Attempting handshake with: ${SOCKET_URL}`);
+
     // Connect to live production or development string cleanly
     const socket = io(SOCKET_URL, {
       transports: ["websocket"], // 👈 Force native websocket pipelines directly!
@@ -46,11 +51,22 @@ export const CustomerJoinGateway: React.FC = () => {
     });
 
     socket.on("connect", () => {
+      setSocketStatus(
+        `✅ Connected perfectly! Line Active. Socket ID: ${socket.id}`,
+      );
       socket.emit("join_branch_room", branchId);
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("Socket structural connection error:", error);
+      setSocketStatus(
+        `❌ Connection Blocked: ${error.message}. Checking firewalls...`,
+      );
     });
 
     // LISTEN REAL-TIME: Process raw data stream safely
     socket.on("queue_updated", (updatedQueue: any) => {
+      setSocketStatus("⚡ Event Heard! Processing raw queue array stream...");
       console.log("Ameblo network shift received stream:", updatedQueue);
 
       const queueArray = Array.isArray(updatedQueue)
@@ -67,6 +83,9 @@ export const CustomerJoinGateway: React.FC = () => {
       );
 
       if (freshRecord) {
+        setSocketStatus(
+          `✅ Match secured! Shifted to Pos #${freshRecord.position}`,
+        );
         console.log(
           `Match found! Updating position: Pos #${freshRecord.position}`,
         );
@@ -81,6 +100,9 @@ export const CustomerJoinGateway: React.FC = () => {
           JSON.stringify(updatedTicketMemory),
         );
       } else {
+        setSocketStatus(
+          "🚪 Ticket vanished from line. Executing served eviction.",
+        );
         // 🎯 THE BULLETPROOF EVICTION INTERCEPTOR
         console.log(
           "Ticket missing from active branch pipeline array. Executing hard exit.",
@@ -97,6 +119,10 @@ export const CustomerJoinGateway: React.FC = () => {
           prev ? { ...prev, status: "Completed" } : null,
         );
       }
+    });
+
+    socket.on("disconnect", (reason) => {
+      setSocketStatus(`⚠️ Pipeline disconnected: ${reason}`);
     });
 
     return () => {
@@ -206,6 +232,8 @@ export const CustomerJoinGateway: React.FC = () => {
                 <Timer className="h-6 w-6 animate-pulse" />
               )}
             </div>
+            {/* remvoove this later---------------------------------------------------------------- */}
+            <p className="break-all">{socketStatus}</p>
             <h2 className="text-lg font-black tracking-tight text-zinc-900">
               {myTicket.status === "Completed"
                 ? "You've Been Served!"
