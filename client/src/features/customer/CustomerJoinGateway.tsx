@@ -97,20 +97,12 @@ export const CustomerJoinGateway: React.FC = () => {
     };
   }, [branchId, myTicket?._id, myTicket?.status]);
 
-  // 🎯 AUTOMATED CELLULAR DESTRUCTION: Clear cache safely on initial page load if requested
+  // 🧨 EMERGENCY HARD DEPLOYMENT WIPE RUN
+  // This fires exactly once on boot, clears your phone cache, and stops.
   useEffect(() => {
-    const forceReset = searchParams.get("reset") === "true";
-
-    if (forceReset) {
-      console.log(
-        "Secret developer flush handshake triggered. Clearing phone cache...",
-      );
-      localStorage.removeItem("amehlo_active_ticket");
-
-      // Clean up the URL parameters so it doesn't loop forever
-      searchParams.delete("reset");
-      window.location.search = searchParams.toString();
-    }
+    console.log("Executing hard cache eviction cycle...");
+    localStorage.clear();
+    sessionStorage.clear();
   }, []);
 
   const handleJoin = async (e: React.FormEvent) => {
