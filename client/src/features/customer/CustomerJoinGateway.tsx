@@ -247,6 +247,16 @@ export const CustomerJoinGateway: React.FC = () => {
               </button>
             </div>
           )}
+          {/* 🤫 SECRET DEVELOPER TESTING RESET SWITCH */}
+          <button
+            onClick={() => {
+              localStorage.removeItem("amehlo_active_ticket");
+              window.location.reload();
+            }}
+            className="fixed bottom-4 right-4 bg-zinc-900/10 text-zinc-400 p-2 text-[9px] rounded-lg border border-zinc-200"
+          >
+            Force Clear Phone Cache
+          </button>
         </div>
       </div>
     );
