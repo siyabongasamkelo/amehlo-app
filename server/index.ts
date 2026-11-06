@@ -16,7 +16,15 @@ const PORT = process.env.PORT || 5000;
 
 connectDB();
 
-app.use(cors({ origin: "*" }));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://amehlo-queue.netlify.app", // 🎯 Added full protocol prefix safely
+    ],
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 app.use("/api/queue", queueRoutes);
@@ -35,7 +43,7 @@ const io = new Server(httpServer, {
     origin: [
       "http://localhost:5173", // Local development
       "http://127.0.0.1:5173", // Backup local fallback loop
-      "https://netlify.app", // Clean live Netlify origin with https://
+      "https://amehlo-queue.netlify.app", // Clean live Netlify origin with https://
     ],
     methods: ["GET", "POST"],
     credentials: true,
