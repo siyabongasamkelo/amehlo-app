@@ -35,7 +35,7 @@ export const CustomerJoinGateway: React.FC = () => {
   const SOCKET_URL =
     import.meta.env.VITE_APP_ENV === "development"
       ? "http://localhost:5000"
-      : "https://amehlo-app.onrender.com/api/queue";
+      : "https://amehlo-app.onrender.com";
 
   // Connect the customer's phone to the active WebSocket room channel safely
   useEffect(() => {
