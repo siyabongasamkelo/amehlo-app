@@ -97,6 +97,22 @@ export const CustomerJoinGateway: React.FC = () => {
     };
   }, [branchId, myTicket?._id, myTicket?.status]);
 
+  // 🎯 AUTOMATED CELLULAR DESTRUCTION: Clear cache safely on initial page load if requested
+  useEffect(() => {
+    const forceReset = searchParams.get("reset") === "true";
+
+    if (forceReset) {
+      console.log(
+        "Secret developer flush handshake triggered. Clearing phone cache...",
+      );
+      localStorage.removeItem("amehlo_active_ticket");
+
+      // Clean up the URL parameters so it doesn't loop forever
+      searchParams.delete("reset");
+      window.location.search = searchParams.toString();
+    }
+  }, []);
+
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!branchId) {
@@ -249,15 +265,6 @@ export const CustomerJoinGateway: React.FC = () => {
           )}
           {/* 🤫 SECRET DEVELOPER TESTING RESET SWITCH */}
         </div>
-        <button
-          onClick={() => {
-            localStorage.removeItem("amehlo_active_ticket");
-            window.location.reload();
-          }}
-          className="fixed bottom-4 right-4 bg-zinc-900/10 text-zinc-400 p-2 text-[9px] rounded-lg border border-zinc-200"
-        >
-          Force Clear Phone Cache
-        </button>
       </div>
     );
   }
@@ -344,6 +351,15 @@ export const CustomerJoinGateway: React.FC = () => {
           </button>
         </form>
       </div>
+      <button
+        onClick={() => {
+          localStorage.removeItem("amehlo_active_ticket");
+          window.location.reload();
+        }}
+        className="fixed bottom-4 right-4 bg-zinc-900/10 text-zinc-400 p-2 text-[9px] rounded-lg border border-zinc-200"
+      >
+        Force Clear Phone Cache
+      </button>
     </div>
   );
 };
