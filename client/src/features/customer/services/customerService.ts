@@ -4,7 +4,7 @@ import type { IQueueItem } from "../../queue/services/queueService";
 // const API_URL = "http://localhost:5000/api/queue";
 
 const API_URL =
-  import.meta.env.MODE === "development"
+  import.meta.env.VITE_APP_ENV === "development"
     ? "http://localhost:5000/api/queue"
     : "https://amehlo-app.onrender.com/api/queue";
 

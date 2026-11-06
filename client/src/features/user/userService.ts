@@ -3,7 +3,7 @@ import axios from "axios";
 // const API_URL = "http://localhost:5000/api/users";
 
 const API_URL =
-  import.meta.env.MODE === "development"
+  import.meta.env.VITE_APP_ENV === "development"
     ? "http://localhost:5000/api/users"
     : "https://amehlo-app.onrender.com/api/users";
 

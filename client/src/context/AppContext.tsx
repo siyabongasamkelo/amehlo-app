@@ -48,10 +48,12 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+console.log("My custom env setup:", import.meta.env.VITE_APP_ENV);
+
 const SOCKET_URL =
-  import.meta.env.MODE === "development"
+  import.meta.env.VITE_APP_ENV === "development"
     ? "http://localhost:5000"
-    : "https://onrender.com";
+    : "https://amehlo-app.onrender.com";
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,

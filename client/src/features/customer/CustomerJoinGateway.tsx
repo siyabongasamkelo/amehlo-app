@@ -19,11 +19,18 @@ export const CustomerJoinGateway: React.FC = () => {
   const [myTicket, setMyTicket] = useState<any | null>(null);
   const [livePosition, setLivePosition] = useState<number | null>(null);
 
+  const SOCKET_URL =
+    import.meta.env.VITE_APP_ENV === "development"
+      ? "http://localhost:5000"
+      : "https://onrender.com";
+
+  const socket = io(SOCKET_URL, {
+    withCredentials: true,
+  });
+
   // 📡 Connect the customer's phone to the active WebSocket room channel
   useEffect(() => {
     if (!branchId || !myTicket) return;
-
-    const socket = io("http://localhost:5000");
 
     socket.on("connect", () => {
       socket.emit("join_branch_room", branchId);
@@ -67,6 +74,7 @@ export const CustomerJoinGateway: React.FC = () => {
       );
       setMyTicket(ticket);
       setLivePosition(ticket.position);
+      socket.emit("customer_joined_queue", { branchId, ticket });
     } catch (err: any) {
       console.error("Mobile terminal check-in fault:", err);
       setError(
