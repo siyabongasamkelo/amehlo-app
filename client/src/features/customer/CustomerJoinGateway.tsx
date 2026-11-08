@@ -48,15 +48,19 @@ export const CustomerJoinGateway: React.FC = () => {
       ? "http://localhost:5000"
       : "https://amehlo-app.onrender.com";
   // 📡 FETCH ACTIVE LANES FOR THIS SPECIFIC BRANCH INSTANTLY ON MOUNT
+  // 📡 FETCH ACTIVE LANES FOR THIS SPECIFIC BRANCH INSTANTLY ON MOUNT
   useEffect(() => {
     if (!branchId) return;
 
     const fetchLanes = async () => {
       setIsLoadingServices(true);
       try {
-        // Query your server API directly to get available departments for this setup context
         const baseUrl = SOCKET_URL;
-        const res = await axios.get(`${baseUrl}/api/services/${branchId}`);
+        // ⚡ Updated URL to target the clean unique /branch prefix endpoint route configuration
+        const res = await axios.get(
+          `${baseUrl}/api/services/branch/${branchId}`,
+        );
+        console.log("Fetched Services Network Return Data:", res.data);
         setAvailableServices(res.data.services || []);
       } catch (err) {
         console.error("Failed loading mobile lane routes:", err);

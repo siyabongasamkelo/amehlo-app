@@ -26,6 +26,7 @@ router.post("/setup", async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({ message: "Services configured successfully." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+    console.log(error);
   }
 });
 
@@ -43,28 +44,58 @@ router.get(
   },
 );
 
-router.get("/:branchId", async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { branchId } = req.params;
+router.get(
+  "/branch/:branchId",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      console.log(
+        "➔ [HTTP API SUCCESS] Hit targeted services branch fetch line!",
+      );
+      const { branchId } = req.params;
 
-    // 1. Look up the branch node configuration to find its parent businessId owner
-    const branch = await Branch.findById(branchId);
-    if (!branch) {
-      res
-        .status(404)
-        .json({ error: "Target operational branch station not found." });
-      return;
+      const branch = await Branch.findById(branchId);
+      if (!branch) {
+        res
+          .status(404)
+          .json({ error: "Target operational branch station not found." });
+        return;
+      }
+
+      // 🎯 THE PERFECT DATA SYNC MATCH: Read companyId directly as shown in Atlas!
+      const rawCompanyId = (branch as any).companyId;
+
+      if (!rawCompanyId) {
+        console.log(
+          `⚠️ Database Alert: Branch ${branchId} exists but has no attached companyId link!`,
+        );
+        res
+          .status(200)
+          .json({
+            services: [],
+            message: "Branch has no parent company profile linked yet.",
+          });
+        return;
+      }
+
+      const targetBusinessId = rawCompanyId.toString();
+      console.log(
+        `➔ Found valid parent company link token footprint: ${targetBusinessId}`,
+      );
+
+      // Query your Service collections using the company hex ID string footprint
+      const availableServices = await Service.find({
+        businessId: targetBusinessId,
+      });
+
+      console.log(
+        `➔ Successfully sending ${availableServices.length} custom services back to client.`,
+      );
+      res.status(200).json({ services: availableServices });
+    } catch (error: any) {
+      console.error("❌ BACKEND CRASH ERROR:", error.message);
+      res.status(500).json({ error: error.message });
     }
-
-    // 2. Fetch all service channels registered under that company identity line
-    const availableServices = await Service.find({
-      businessId: branch.businessId,
-    });
-
-    res.status(200).json({ services: availableServices });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  },
+);
 
 export default router;
