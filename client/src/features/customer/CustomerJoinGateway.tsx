@@ -46,7 +46,7 @@ export const CustomerJoinGateway: React.FC = () => {
   const SOCKET_URL =
     import.meta.env.VITE_APP_ENV === "development"
       ? "http://localhost:5000"
-      : "https://onrender.com";
+      : "https://amehlo-app.onrender.com";
   // 📡 FETCH ACTIVE LANES FOR THIS SPECIFIC BRANCH INSTANTLY ON MOUNT
   useEffect(() => {
     if (!branchId) return;
