@@ -7,6 +7,8 @@ const API_URL =
     ? "http://localhost:5000/api/branches"
     : "https://amehlo-app.onrender.com/api/branches";
 
+console.log("API_URL:", API_URL);
+
 export interface IBranchData {
   _id: string;
   name: string;

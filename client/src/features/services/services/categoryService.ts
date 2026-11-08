@@ -3,7 +3,7 @@ import axios from "axios";
 const API_URL =
   import.meta.env.VITE_APP_ENV === "development"
     ? "http://localhost:5000/api/services"
-    : "https://onrender.com";
+    : "https://amehlo-app.onrender.com/api/services";
 
 export interface IServiceData {
   _id: string;

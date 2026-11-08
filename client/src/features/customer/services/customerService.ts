@@ -4,7 +4,7 @@ import type { IQueueItem } from "../../queue/services/queueService";
 const API_URL =
   import.meta.env.VITE_APP_ENV === "development"
     ? "http://localhost:5000/api/queue"
-    : "https://onrender.com";
+    : "https://amehlo-app.onrender.com/api/queue";
 
 export const customerService = {
   // ➔ Let a guest customer join the branch line directly via their mobile browser with a service lane bind
