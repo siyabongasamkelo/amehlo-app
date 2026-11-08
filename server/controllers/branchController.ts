@@ -57,7 +57,6 @@ export const getCompanyBranches = async (
 };
 
 // ➔ VALIDATE INVITE CODE FOR FRONTLINE WORKERS (GET /api/branches/verify/:inviteCode)
-// ➔ VALIDATE INVITE CODE FOR FRONTLINE WORKERS (GET /api/branches/verify/:inviteCode)
 export const verifyInviteCode = async (
   req: Request,
   res: Response,
@@ -86,6 +85,50 @@ export const verifyInviteCode = async (
     res
       .status(200)
       .json({ message: "Staff token code successfully cleared", branch });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 🎯 LOOKUP PHYSICAL BRANCH VIA PHONE NUMBER (GET /api/branches/search/phone)
+export const getBranchByPhone = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { phone } = req.query;
+
+    if (!phone || typeof phone !== "string") {
+      res
+        .status(400)
+        .json({ error: "Missing or malformed phone query parameter." });
+      return;
+    }
+
+    // ⚡ SANITIZATION ENGINE: Strip common layout characters to ensure match integrity
+    const sanitizedSearchPhone = phone.replace(/[^0-9+]/g, "");
+
+    // Fetch all branches to compare sanitized database fields cleanly
+    const branches = await Branch.find({});
+
+    const matchedBranch = branches.find((branch) => {
+      const dbSanitized = branch.phone.replace(/[^0-9+]/g, "");
+      return (
+        dbSanitized === sanitizedSearchPhone ||
+        dbSanitized.endsWith(sanitizedSearchPhone)
+      );
+    });
+
+    if (!matchedBranch) {
+      res
+        .status(404)
+        .json({
+          error: "No active queue terminal found matching this phone number.",
+        });
+      return;
+    }
+
+    res.status(200).json({ branch: matchedBranch });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

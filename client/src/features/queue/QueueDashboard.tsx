@@ -401,10 +401,28 @@ export const QueueDashboard: React.FC = () => {
                         <span className="text-zinc-400 flex items-center gap-1">
                           <Briefcase className="h-3 w-3" /> Assigned Task:
                         </span>
-                        {/* ➔ NEW DYNAMIC SERVICE TRACK BADGE INSIDE THE CARD */}
                         <span className="px-1.5 py-0.5 rounded bg-orange-50 border border-orange-100 text-orange-700 font-black uppercase tracking-wider text-[9px]">
                           {serviceBadgeLabel}
                         </span>
+                      </div>
+
+                      {/* 🎯 THE KILLER FEATURE OPERATIONS RADAR BADGE */}
+                      <div className="flex justify-between items-center pt-1 border-t border-dashed border-zinc-200">
+                        <span className="text-zinc-400 flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-zinc-400" /> Patron
+                          Radar:
+                        </span>
+                        {item.presenceStatus === "Remote" ? (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-700 font-black uppercase tracking-wider text-[9px] animate-pulse flex items-center gap-0.5">
+                            <span className="h-1 w-1 rounded-full bg-amber-500 animate-ping" />
+                            In Transit (Home/Taxi)
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 font-black uppercase tracking-wider text-[9px] flex items-center gap-0.5">
+                            <span className="h-1 w-1 rounded-full bg-emerald-500" />
+                            Inside Store (Present)
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

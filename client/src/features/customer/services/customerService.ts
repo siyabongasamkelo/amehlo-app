@@ -7,22 +7,29 @@ const API_URL =
     : "https://amehlo-app.onrender.com/api/queue";
 
 export const customerService = {
-  // ➔ Let a guest customer join the branch line directly via their mobile browser with a service lane bind
+  // Let a guest customer join the branch line directly via their mobile browser with a service lane bind
   joinQueueFromMobile: async (
     branchId: string,
     name: string,
     phone: string,
-    serviceId: string, // ➔ Added serviceId parameter to match your updated backend requirements
+    serviceId: string,
     email?: string,
+    isRemoteJoin: boolean = true,
   ): Promise<IQueueItem> => {
     const response = await axios.post(`${API_URL}/join`, {
       branchId,
       name,
       phone,
-      serviceId, // ➔ Sent payload metrics directly downstream to the API
+      serviceId,
       email,
+      isRemoteJoin,
     });
     return response.data.ticket;
+  },
+
+  confirmPhysicalArrival: async (ticketId: string): Promise<any> => {
+    const response = await axios.post(`${API_URL}/${ticketId}/arrive`);
+    return response.data;
   },
 
   leaveQueueFromMobile: async (ticketId: string): Promise<void> => {

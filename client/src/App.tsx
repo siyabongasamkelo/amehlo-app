@@ -5,7 +5,8 @@ import { CreateCompanyGateway } from "./features/company/CreateCompanyGateway";
 import { QueueDashboard } from "./features/queue/QueueDashboard";
 import { BranchManagementGateway } from "./features/branch/BranchManagementGateway";
 import { CustomerJoinGateway } from "./features/customer/CustomerJoinGateway";
-import { BranchServicesConfig } from "./features/services/components/BranchServicesConfig"; // ➔ Import the new configuration view
+import { RemoteLookupGateway } from "./features/remoteLookupGateway/RemoteLookupGateway";
+import { BranchServicesConfig } from "./features/services/components/BranchServicesConfig";
 
 export default function App() {
   const { dbUser, activeCompany, isLoadingProfile } = useApp();
@@ -31,6 +32,9 @@ export default function App() {
       <Routes>
         {/* 📱 PUBLIC CUSTOMER-FACING SCANNING PORTAL */}
         <Route path="/customer/join" element={<CustomerJoinGateway />} />
+
+        {/* 📱 PUBLIC REMOTE SEARCH ENGINE PORTAL */}
+        <Route path="/search" element={<RemoteLookupGateway />} />
 
         {/* Entry Interceptor: Route admin paths based on verification roles */}
         <Route

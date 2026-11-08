@@ -10,6 +10,7 @@ export interface IQueueTicket extends Document {
   email?: string;
   position: number;
   status: "Active" | "Up Next" | "Waiting";
+  presenceStatus: "Remote" | "Arrived";
   addedAt: Date;
 }
 
@@ -35,6 +36,11 @@ const QueueTicketSchema = new Schema<IQueueTicket>({
     type: String,
     enum: ["Active", "Up Next", "Waiting"],
     default: "Waiting",
+  },
+  presenceStatus: {
+    type: String,
+    enum: ["Remote", "Arrived"],
+    default: "Remote",
   },
   addedAt: { type: Date, default: Date.now },
 });

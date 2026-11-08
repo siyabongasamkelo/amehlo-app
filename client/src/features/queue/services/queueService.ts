@@ -15,6 +15,7 @@ export interface IQueueItem {
   email?: string;
   position: number;
   status: "Active" | "Up Next" | "Waiting";
+  presenceStatus?: "Remote" | "Arrived";
   addedAt: string;
 }
 export const queueService = {
@@ -29,14 +30,16 @@ export const queueService = {
     branchId: string,
     name: string,
     phone: string,
-    serviceId: string, // ➔ Added serviceId parameter to match your updated backend requirements
+    serviceId: string,
+    isRemoteJoin: boolean = true,
     email?: string,
   ): Promise<IQueueItem> => {
     const response = await axios.post(`${API_URL}/join`, {
       branchId,
       name,
       phone,
-      serviceId, // ➔ Sent payload metrics directly to the API endpoint
+      serviceId,
+      isRemoteJoin,
       email,
     });
     return response.data.ticket;

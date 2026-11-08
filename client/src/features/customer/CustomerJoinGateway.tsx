@@ -9,31 +9,33 @@ import {
   Loader2,
   CheckCircle2,
   Briefcase,
+  MapPin,
 } from "lucide-react";
-import axios from "axios"; // Used to quickly query company service endpoints locally
+import axios from "axios";
 
 export const CustomerJoinGateway: React.FC = () => {
   const [searchParams] = useSearchParams();
 
-  // 🎯 CRITICAL PARAMS FIX: Match the exact key ("branchId") emitted from your dashboard QR Code layout
+  // Match the exact branch key emitted from your dashboard QR Code layout
   const branchId = searchParams.get("branchId") || searchParams.get("branch");
 
   // Form Fields
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [selectedServiceId, setSelectedServiceId] = useState(""); // ➔ Track active selected service lane
+  const [selectedServiceId, setSelectedServiceId] = useState("");
 
   // System States
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [isVerifyingArrival, setIsVerifyingArrival] = useState(false); // 🎯 Arrival loading lock
 
   // Custom Services Cache State
   const [availableServices, setAvailableServices] = useState<any[]>([]);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
 
-  // Auto Memory Hydration on Refresh
+  // Auto Memory Hydration on Page Refresh
   const [myTicket, setMyTicket] = useState<any | null>(() => {
     const saved = localStorage.getItem("amehlo_active_ticket");
     return saved ? JSON.parse(saved) : null;
@@ -47,7 +49,37 @@ export const CustomerJoinGateway: React.FC = () => {
     import.meta.env.VITE_APP_ENV === "development"
       ? "http://localhost:5000"
       : "https://amehlo-app.onrender.com";
-  // 📡 FETCH ACTIVE LANES FOR THIS SPECIFIC BRANCH INSTANTLY ON MOUNT
+  // 📡 🎯 DETECT QR SCAN ARRIVAL INTERCEPTOR ON MOUNT
+  useEffect(() => {
+    if (!branchId || !myTicket) return;
+
+    // Check if the saved local ticket matches this scanned branch and is still marked remote
+    if (
+      myTicket.branchId === branchId &&
+      myTicket.presenceStatus === "Remote"
+    ) {
+      setIsVerifyingArrival(true);
+
+      customerService
+        .confirmPhysicalArrival(myTicket._id)
+        .then((data) => {
+          // Update local storage to reflect physical arrival validation safely
+          const arrivedTicket = { ...myTicket, presenceStatus: "Arrived" };
+          localStorage.setItem(
+            "amehlo_active_ticket",
+            JSON.stringify(arrivedTicket),
+          );
+          setMyTicket(arrivedTicket);
+        })
+        .catch((err) => {
+          console.error("Presence check-in auto-trigger failed:", err);
+        })
+        .finally(() => {
+          setIsVerifyingArrival(false);
+        });
+    }
+  }, [branchId, myTicket?._id]);
+
   // 📡 FETCH ACTIVE LANES FOR THIS SPECIFIC BRANCH INSTANTLY ON MOUNT
   useEffect(() => {
     if (!branchId) return;
@@ -56,11 +88,9 @@ export const CustomerJoinGateway: React.FC = () => {
       setIsLoadingServices(true);
       try {
         const baseUrl = SOCKET_URL;
-        // ⚡ Updated URL to target the clean unique /branch prefix endpoint route configuration
         const res = await axios.get(
           `${baseUrl}/api/services/branch/${branchId}`,
         );
-        console.log("Fetched Services Network Return Data:", res.data);
         setAvailableServices(res.data.services || []);
       } catch (err) {
         console.error("Failed loading mobile lane routes:", err);
@@ -71,7 +101,6 @@ export const CustomerJoinGateway: React.FC = () => {
 
     fetchLanes();
   }, [branchId]);
-
   // 📡 WEBSOCKET CONNECTION LIFECYCLE MANAGEMENT LOOP
   useEffect(() => {
     if (!branchId || !myTicket || myTicket.status === "Completed") return;
@@ -101,9 +130,25 @@ export const CustomerJoinGateway: React.FC = () => {
 
       if (freshRecord) {
         setLivePosition(freshRecord.position);
+        // Retain the local presenceStatus field across server state sync pulses
         localStorage.setItem(
           "amehlo_active_ticket",
-          JSON.stringify({ ...myTicket, position: freshRecord.position }),
+          JSON.stringify({
+            ...myTicket,
+            position: freshRecord.position,
+            presenceStatus:
+              freshRecord.presenceStatus || myTicket.presenceStatus,
+          }),
+        );
+        setMyTicket((prev: any) =>
+          prev
+            ? {
+                ...prev,
+                position: freshRecord.position,
+                presenceStatus:
+                  freshRecord.presenceStatus || prev.presenceStatus,
+              }
+            : null,
         );
       } else {
         localStorage.removeItem("amehlo_active_ticket");
@@ -135,13 +180,14 @@ export const CustomerJoinGateway: React.FC = () => {
     setError(null);
 
     try {
-      // ⚡ Fire live creation payload downstream to your updated customerService core
+      // Defaults to true when booking through standard mobile web interface (Remote check-in)
       const ticket = await customerService.joinQueueFromMobile(
         branchId,
         name.trim(),
         phone.trim(),
-        selectedServiceId, // ➔ Bound serviceId passed perfectly
+        selectedServiceId,
         email.trim() || undefined,
+        true,
       );
 
       localStorage.setItem("amehlo_active_ticket", JSON.stringify(ticket));
@@ -182,6 +228,23 @@ export const CustomerJoinGateway: React.FC = () => {
       setIsLeaving(false);
     }
   };
+
+  // 📱 INTERCEPTOR STATE: AUTOMATIC QR ARRIVAL SYNC PULSE
+  if (isVerifyingArrival) {
+    return (
+      <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-6 text-center space-y-3 font-sans">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+        <h2 className="text-sm font-bold text-zinc-800 uppercase tracking-wider">
+          Welcoming Your Arrival...
+        </h2>
+        <p className="text-xs text-zinc-400">
+          Verifying location keys. Activating your priority slot at the counter
+          terminal...
+        </p>
+      </div>
+    );
+  }
+
   // 📱 INVALID STATE BARRIER INTERCEPTOR
   if (!branchId) {
     return (
@@ -202,6 +265,8 @@ export const CustomerJoinGateway: React.FC = () => {
 
   // 📱 SCREEN STATE B: CUSTOMER IN LINE (REAL-TIME PROGRESS MONITOR)
   if (myTicket) {
+    const isRemote = myTicket.presenceStatus === "Remote";
+
     return (
       <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-4 font-sans antialiased">
         <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-xl max-w-md w-full text-center space-y-6 animate-in zoom-in-95 duration-200">
@@ -221,6 +286,29 @@ export const CustomerJoinGateway: React.FC = () => {
             <p className="text-xs text-zinc-400 font-medium">
               Ticket Holder: {myTicket.name}
             </p>
+          </div>
+
+          {/* 🎯 SUB-BADGE CONTEXT INDICATING PRESENCE MATRIX LAYER */}
+          <div className="flex justify-center select-none">
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wide border ${
+                isRemote
+                  ? "bg-amber-50 text-amber-700 border-amber-200 animate-pulse"
+                  : "bg-emerald-50 text-emerald-700 border-emerald-200"
+              }`}
+            >
+              {isRemote ? (
+                <>
+                  <MapPin className="h-3 w-3 text-amber-600" /> In Transit
+                  (Remote Checking)
+                </>
+              ) : (
+                <>
+                  <UserCheck className="h-3 w-3 text-emerald-600" /> Physical
+                  Presence (Arrived)
+                </>
+              )}
+            </span>
           </div>
 
           {myTicket.status === "Completed" ? (
@@ -246,6 +334,21 @@ export const CustomerJoinGateway: React.FC = () => {
                   {livePosition !== null ? `Pos #${livePosition}` : "Up Next"}
                 </span>
               </div>
+            </div>
+          )}
+
+          {isRemote && myTicket.status !== "Completed" && (
+            <div className="bg-zinc-50 border border-zinc-100/80 rounded-2xl p-3.5 text-left text-zinc-500 text-xs space-y-1">
+              <p className="font-bold text-zinc-700 text-center text-[11px] uppercase tracking-wide text-orange-600">
+                ⚠️ Store Queue Rule
+              </p>
+              <p className="text-center text-[11px]">
+                Your number is held, but the counter will prioritize active
+                patrons if you aren't inside the store when called.{" "}
+                <strong>
+                  Scan the wall poster QR when you walk in to activate!
+                </strong>
+              </p>
             </div>
           )}
 

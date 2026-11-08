@@ -7,22 +7,22 @@ import userRoutes from "./routes/userRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import branchRoutes from "./routes/branchRoutes.js";
 import serviceRoutes from "./routes/serviceRoutes.js";
+import whatsappRouter from "./routes/whatsappRoutes.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 
 dotenv.config();
 
 const app = express();
+app.use(express.urlencoded({ extended: true }));
+
 const PORT = process.env.PORT || 5000;
 
 connectDB();
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://amehlo-queue.netlify.app", // 🎯 Added full protocol prefix safely
-    ],
+    origin: ["http://localhost:5173", "https://amehlo-queue.netlify.app"],
     credentials: true,
   }),
 );
@@ -33,6 +33,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/companies", companyRoutes);
 app.use("/api/branches", branchRoutes);
 app.use("/api/services", serviceRoutes);
+app.use("/api/whatsapp", whatsappRouter);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "online" });

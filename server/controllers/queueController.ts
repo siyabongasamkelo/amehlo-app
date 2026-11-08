@@ -4,9 +4,11 @@ import { resequenceBranchQueue } from "../utils/queueEngine.js";
 import { io } from "../index.js"; // ➔ Import the active 'io' socket engine instance!
 
 // ➔ JOIN QUEUE (POST /api/queue/join)
+// 1. UPDATE JOIN QUEUE (Modify your existing joinQueue function)
 export const joinQueue = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, phone, email, branchId, serviceId } = req.body; // ➔ Added serviceId
+    // ➔ Add presenceStatus check from request body (Defaults to "Remote" if not sent)
+    const { name, phone, email, branchId, serviceId, isRemoteJoin } = req.body;
     if (!name || !phone || !branchId || !serviceId) {
       res.status(400).json({ error: "Missing required booking metrics." });
       return;
@@ -18,11 +20,13 @@ export const joinQueue = async (req: Request, res: Response): Promise<void> => {
     const newTicket = new QueueTicket({
       ticketId: randomTicket,
       branchId,
-      serviceId, // ➔ Bound ticket to service
+      serviceId,
       name,
       phone,
       email,
       position: currentCount + 1,
+      // 🎯 If joined from app dashboard/home, flag as Remote. If scanned inside, it can be Arrived.
+      presenceStatus: isRemoteJoin === false ? "Arrived" : "Remote",
     });
 
     await newTicket.save();
@@ -40,7 +44,6 @@ export const joinQueue = async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
-    console.log(error);
   }
 };
 
@@ -217,6 +220,43 @@ export const getBranchQueueAnalytics = async (
       worstWaitTime: `${worstMins > 0 ? worstMins : 1} mins`,
       totalCompleted: logs.length,
       rawLogs: logs, // Send raw logs purely for localized peak hour tracking charts
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const verifyStoreArrival = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { id } = req.params; // ticket _id
+    const ticket = await QueueTicket.findById(id);
+
+    if (!ticket) {
+      res.status(404).json({
+        error: "Ticket booking reference matching this identity not found.",
+      });
+      return;
+    }
+
+    // Flip status to physical presence
+    ticket.presenceStatus = "Arrived";
+    await ticket.save();
+
+    // Resequence or refresh active states across terminals
+    await resequenceBranchQueue(ticket.branchId);
+
+    const freshQueue = await QueueTicket.find({
+      branchId: ticket.branchId,
+    }).sort({ position: 1 });
+    io.to(ticket.branchId).emit("queue_updated", freshQueue);
+
+    res.status(200).json({
+      message: "Welcome to the store! Presence validated successfully.",
+      ticket,
+      queue: freshQueue,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
