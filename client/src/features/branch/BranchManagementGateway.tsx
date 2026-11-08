@@ -60,7 +60,7 @@ export const BranchManagementGateway: React.FC = () => {
   const handleLaunchTerminal = (branchId: string) => {
     // Save active operational terminal to localStorage or state before routing
     localStorage.setItem("active_terminal_id", branchId);
-    navigate("/dashboard");
+    navigate(`/branch/${branchId}/services`);
   };
 
   return (

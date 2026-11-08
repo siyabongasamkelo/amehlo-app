@@ -6,6 +6,7 @@ import queueRoutes from "./routes/queueRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import branchRoutes from "./routes/branchRoutes.js";
+import serviceRoutes from "./routes/serviceRoutes.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 
@@ -31,6 +32,7 @@ app.use("/api/queue", queueRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/companies", companyRoutes);
 app.use("/api/branches", branchRoutes);
+app.use("/api/services", serviceRoutes);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "online" });

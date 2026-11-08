@@ -1,17 +1,15 @@
 import axios from "axios";
 
-// 🎯 CRITICAL FIX: Base matches your singular backend express routing definitions
-// const API_URL = "http://localhost:5000/api/queue";
-
 const API_URL =
   import.meta.env.VITE_APP_ENV === "development"
     ? "http://localhost:5000/api/queue"
-    : "https://amehlo-app.onrender.com/api/queue";
+    : "https://onrender.com";
 
 export interface IQueueItem {
-  _id: string; // The MongoDB Document identity key
-  ticketId: string; // The 3-digit randomized ticket number string
+  _id: string;
+  ticketId: string;
   branchId: string;
+  serviceId: string; // ➔ Added to track multi-service lane assignments on the client
   name: string;
   phone: string;
   email?: string;
@@ -19,7 +17,6 @@ export interface IQueueItem {
   status: "Active" | "Up Next" | "Waiting";
   addedAt: string;
 }
-
 export const queueService = {
   // ➔ Fetch active waiting tickets via (GET /api/queue/:branchId)
   getBranchQueue: async (branchId: string): Promise<IQueueItem[]> => {
@@ -27,17 +24,19 @@ export const queueService = {
     return response.data.queue;
   },
 
-  // ➔ Create a brand new ticket via (POST /api/queue/join)
+  // ➔ Create a brand new ticket bound to a specific category service via (POST /api/queue/join)
   insertTicket: async (
     branchId: string,
     name: string,
     phone: string,
+    serviceId: string, // ➔ Added serviceId parameter to match your updated backend requirements
     email?: string,
   ): Promise<IQueueItem> => {
     const response = await axios.post(`${API_URL}/join`, {
       branchId,
       name,
       phone,
+      serviceId, // ➔ Sent payload metrics directly to the API endpoint
       email,
     });
     return response.data.ticket;
@@ -62,7 +61,6 @@ export const queueService = {
   },
 
   // ➔ Fetch pre-calculated server analytics payload values
-  // 🎯 UPDATE THIS SPECIFIC METHOD CAPTURE SIGNATURE INSIDE YOUR frontend queueService.ts
   getBranchAnalytics: async (
     branchId: string,
   ): Promise<{

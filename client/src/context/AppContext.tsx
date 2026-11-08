@@ -15,6 +15,8 @@ import type { IBranchData } from "../features/branch/services/branchService";
 import { branchService } from "../features/branch/services/branchService";
 import type { IQueueItem } from "../features/queue/services/queueService";
 import { queueService } from "../features/queue/services/queueService";
+import { categoryService } from "../features/services/services/categoryService";
+import type { IServiceData } from "../features/services/services/categoryService";
 
 interface AppContextType {
   dbUser: IUserData | null;
@@ -32,11 +34,24 @@ interface AppContextType {
   rawAnalyticsLogs: any[];
   averageWaitTime: string;
   totalCompletedCount: number;
+
+  services: IServiceData[];
+  isLoadingServices: boolean;
+  loadBusinessServices: (businessId: string) => Promise<void>;
+  configureInitialServices: (
+    businessId: string,
+    serviceNames: string[],
+  ) => Promise<void>;
+
   syncAndHydrateProfile: (inviteCode?: string) => Promise<void>;
 
   setActiveBranchId: (id: string | null) => void;
   loadLiveQueueMetrics: (branchId: string) => Promise<void>;
-  insertQueueReal: (name: string, phone: string) => Promise<void>;
+  insertQueueReal: (
+    name: string,
+    phone: string,
+    serviceId: string,
+  ) => Promise<void>;
   updateQueueStatusReal: (
     ticketId: string,
     status: "Waiting" | "Active" | "Completed" | "Absent",
@@ -74,10 +89,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [bestWaitTime, setBestWaitTime] = useState<string>("0 mins");
   const [worstWaitTime, setWorstWaitTime] = useState<string>("0 mins");
   const [rawAnalyticsLogs, setRawAnalyticsLogs] = useState<any[]>([]);
+  const [services, setServices] = useState<IServiceData[]>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState<boolean>(false);
 
   const isHydratingRef = useRef<boolean>(false);
   const lastSyncedClerkIdRef = useRef<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
+
+  // ➔ Action Trigger to fetch available service items
+  const loadBusinessServices = async (businessId: string) => {
+    setIsLoadingServices(true);
+    try {
+      const data = await categoryService.getBusinessServices(businessId);
+      setServices(data);
+    } catch (err) {
+      console.error("Failed fetching configured workflow operations:", err);
+    } finally {
+      setIsLoadingServices(false);
+    }
+  };
+
+  // ➔ Action Trigger to save custom array bundles
+  const configureInitialServices = async (
+    businessId: string,
+    serviceNames: string[],
+  ) => {
+    try {
+      await categoryService.setupServices(businessId, serviceNames);
+      await loadBusinessServices(businessId); // Hot reload matching local items immediately
+    } catch (err) {
+      console.error("Failed saving workspace category mappings:", err);
+      throw err;
+    }
+  };
 
   // ➔ Initial Static Fallback Loader
   const loadLiveQueueMetrics = async (branchId: string) => {
@@ -103,10 +147,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const insertQueueReal = async (name: string, phone: string) => {
+  // ➔ Updated signature to include serviceId passthrough tracking
+  const insertQueueReal = async (
+    name: string,
+    phone: string,
+    serviceId: string,
+  ) => {
     if (!activeBranchId) return;
     try {
-      await queueService.insertTicket(activeBranchId, name, phone);
+      // ⚡ Forward the serviceId down to the queueService endpoint provider
+      await queueService.insertTicket(activeBranchId, name, phone, serviceId);
     } catch (err) {
       console.error("Failed inserting item to network path:", err);
       throw err;
@@ -192,6 +242,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // ➔ Automatically fetch services when an active company workspace resolves
+  useEffect(() => {
+    if (activeCompany?._id) {
+      loadBusinessServices(activeCompany._id);
+    } else {
+      setServices([]);
+    }
+  }, [activeCompany?._id]);
+
   // 📡 WEBSOCKET CONNECTION LIFECYCLE MANAGEMENT LOOP
   useEffect(() => {
     const socket = io(SOCKET_URL);
@@ -276,6 +335,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         bestWaitTime,
         worstWaitTime,
         rawAnalyticsLogs,
+        services,
+        isLoadingServices,
+        loadBusinessServices,
+        configureInitialServices,
       }}
     >
       {children}

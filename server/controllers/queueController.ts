@@ -6,8 +6,8 @@ import { io } from "../index.js"; // ➔ Import the active 'io' socket engine in
 // ➔ JOIN QUEUE (POST /api/queue/join)
 export const joinQueue = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, phone, email, branchId } = req.body;
-    if (!name || !phone || !branchId) {
+    const { name, phone, email, branchId, serviceId } = req.body; // ➔ Added serviceId
+    if (!name || !phone || !branchId || !serviceId) {
       res.status(400).json({ error: "Missing required booking metrics." });
       return;
     }
@@ -18,6 +18,7 @@ export const joinQueue = async (req: Request, res: Response): Promise<void> => {
     const newTicket = new QueueTicket({
       ticketId: randomTicket,
       branchId,
+      serviceId, // ➔ Bound ticket to service
       name,
       phone,
       email,
@@ -30,8 +31,6 @@ export const joinQueue = async (req: Request, res: Response): Promise<void> => {
     const updatedQueue = await QueueTicket.find({ branchId }).sort({
       position: 1,
     });
-
-    // ⚡ REAL-TIME BROADCAST: Tell all users in the branch room to reload lines instantly
     io.to(branchId).emit("queue_updated", updatedQueue);
 
     res.status(201).json({
@@ -41,6 +40,7 @@ export const joinQueue = async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+    console.log(error);
   }
 };
 
@@ -61,6 +61,7 @@ export const completeTurn = async (
     await CompletionLog.create({
       ticketId: ticket.ticketId,
       branchId: ticket.branchId,
+      serviceId: ticket.serviceId, // ➔ Transferred to metrics history engine
       addedAt: ticket.addedAt,
     });
 
@@ -70,8 +71,6 @@ export const completeTurn = async (
     const freshQueue = await QueueTicket.find({
       branchId: ticket.branchId,
     }).sort({ position: 1 });
-
-    // ⚡ REAL-TIME BROADCAST: Clear out completed card values across terminals instantly
     io.to(ticket.branchId).emit("queue_updated", freshQueue);
 
     res.status(200).json({
@@ -82,6 +81,7 @@ export const completeTurn = async (
     res.status(500).json({ error: error.message });
   }
 };
+
 // ➔ SHIFT TO BACK / SKIP (POST /api/queue/:id/skip)
 export const skipTurn = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -151,14 +151,21 @@ export const purgeGhostClient = async (
   }
 };
 
-// ➔ FETCH LIVE QUEUE FOR BRANCH (GET /api/queue/:branchId)
+// ➔ FETCH LIVE QUEUE FOR BRANCH WITH OPTIONAL SERVICE FILTERING (GET /api/queue/:branchId)
 export const getBranchQueue = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
   try {
     const { branchId } = req.params;
-    const activeQueue = await QueueTicket.find({ branchId }).sort({
+    const { serviceId } = req.query; // ➔ Optional filter query string parameter: ?serviceId=XYZ
+
+    const filterCondition: any = { branchId };
+    if (serviceId) {
+      filterCondition.serviceId = serviceId;
+    }
+
+    const activeQueue = await QueueTicket.find(filterCondition).sort({
       position: 1,
     });
     res.status(200).json({ queue: activeQueue });

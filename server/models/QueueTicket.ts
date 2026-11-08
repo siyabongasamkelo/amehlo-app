@@ -2,12 +2,13 @@ import { Schema, model, Document } from "mongoose";
 
 // --- ACTIVE QUEUE TICKET INTERFACE ---
 export interface IQueueTicket extends Document {
-  ticketId: string; // 3-digit rolling ticket number (e.g., "412")
-  branchId: string; // Tied to physical branch context
-  name: string; // Customer name
-  phone: string; // Customer contact line
-  email?: string; // Optional client email
-  position: number; // Sequential line position
+  ticketId: string;
+  branchId: string;
+  serviceId: string; // ➔ Added to tie ticket to a specific service category
+  name: string;
+  phone: string;
+  email?: string;
+  position: number;
   status: "Active" | "Up Next" | "Waiting";
   addedAt: Date;
 }
@@ -16,6 +17,7 @@ export interface IQueueTicket extends Document {
 export interface ICompletionLog extends Document {
   ticketId: string;
   branchId: string;
+  serviceId: string; // ➔ Added for tracking analytics by category
   addedAt: Date;
   completedAt: Date;
 }
@@ -24,6 +26,7 @@ export interface ICompletionLog extends Document {
 const QueueTicketSchema = new Schema<IQueueTicket>({
   ticketId: { type: String, required: true },
   branchId: { type: String, required: true },
+  serviceId: { type: String, required: true }, // ➔ Enforced service assignment
   name: { type: String, required: true, trim: true },
   phone: { type: String, required: true, trim: true },
   email: { type: String, trim: true },
@@ -36,13 +39,13 @@ const QueueTicketSchema = new Schema<IQueueTicket>({
   addedAt: { type: Date, default: Date.now },
 });
 
-// Compound index to guarantee uniqueness of ticket positions within a single physical branch
 QueueTicketSchema.index({ branchId: 1, position: 1 });
 
 // --- COMPLETION LOG SCHEMA ---
 const CompletionLogSchema = new Schema<ICompletionLog>({
   ticketId: { type: String, required: true },
   branchId: { type: String, required: true },
+  serviceId: { type: String, required: true }, // ➔ Logged for business intelligence
   addedAt: { type: Date, required: true },
   completedAt: { type: Date, default: Date.now },
 });

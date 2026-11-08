@@ -4,14 +4,15 @@ import { RegisterGateway } from "./features/register/RegisterGateway";
 import { CreateCompanyGateway } from "./features/company/CreateCompanyGateway";
 import { QueueDashboard } from "./features/queue/QueueDashboard";
 import { BranchManagementGateway } from "./features/branch/BranchManagementGateway";
-import { CustomerJoinGateway } from "./features/customer/CustomerJoinGateway"; // ➔ Import the new mobile page
+import { CustomerJoinGateway } from "./features/customer/CustomerJoinGateway";
+import { BranchServicesConfig } from "./features/services/components/BranchServicesConfig"; // ➔ Import the new configuration view
 
 export default function App() {
   const { dbUser, activeCompany, isLoadingProfile } = useApp();
 
   console.log("Current Database Sync User:", dbUser);
 
-  // GLOBAL HYDRATION GUARD (Only blocks admin dashboard routes, lets public routes pass if structured)
+  // GLOBAL HYDRATION GUARD
   if (isLoadingProfile) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-white font-sans">
@@ -28,7 +29,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 📱 PUBLIC CUSTOMER-FACING SCANNING PORTAL (🔒 Left completely open for guest check-ins) */}
+        {/* 📱 PUBLIC CUSTOMER-FACING SCANNING PORTAL */}
         <Route path="/customer/join" element={<CustomerJoinGateway />} />
 
         {/* Entry Interceptor: Route admin paths based on verification roles */}
@@ -74,6 +75,22 @@ export default function App() {
             dbUser && dbUser.role === "owner" ? (
               activeCompany ? (
                 <BranchManagementGateway />
+              ) : (
+                <Navigate to="/create-company" replace />
+              )
+            ) : (
+              <Navigate to="/register" replace />
+            )
+          }
+        />
+
+        {/* 🔒 OWNERS-ONLY BRANCH SERVICES CONFIGURATION ROUTE */}
+        <Route
+          path="/branch/:branchId/services"
+          element={
+            dbUser && dbUser.role === "owner" ? (
+              activeCompany ? (
+                <BranchServicesConfig />
               ) : (
                 <Navigate to="/create-company" replace />
               )

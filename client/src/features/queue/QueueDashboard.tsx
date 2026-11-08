@@ -28,7 +28,7 @@ export const QueueDashboard: React.FC = () => {
     branches,
     activeBranchId,
     queue,
-    // completedLogs,
+    services, // ➔ Freshly integrated multi-service lookup store
     rawAnalyticsLogs,
     isLoadingQueue,
     setActiveBranchId,
@@ -59,6 +59,21 @@ export const QueueDashboard: React.FC = () => {
     currentBranch?.phone || "035 111 2222",
   );
 
+  // ➔ Manual drop-in action wrapper updating signature to accept target categories
+  const handleManualInsert = async (
+    name: string,
+    phone: string,
+    serviceId: string,
+    email?: string,
+  ) => {
+    if (!activeBranchId) return;
+    try {
+      await insertQueueReal(name, phone, serviceId);
+    } catch (err) {
+      console.error("Manual lane injection failure:", err);
+    }
+  };
+  // --- SUB-PANEL REDIRECT COCKPIT OVERLAYS ---
   if (isFullscreenDisplay) {
     return (
       <TvDisplay
@@ -87,7 +102,7 @@ export const QueueDashboard: React.FC = () => {
   if (isAnalyticsOpen && user?.role === "owner") {
     return (
       <AnalyticsPanel
-        logs={rawAnalyticsLogs} // Pass the variable we just destructured up top
+        logs={rawAnalyticsLogs}
         averageWaitTime={averageWaitTime}
         bestWaitTime={bestWaitTime}
         worstWaitTime={worstWaitTime}
@@ -100,6 +115,7 @@ export const QueueDashboard: React.FC = () => {
 
   return (
     <div className="max-w-7xl w-full mx-auto p-4 md:p-8 space-y-6 animate-in fade-in duration-200">
+      {/* ➔ MAIN HEADER & BRANCH SWITCHER CONTROLS */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-zinc-200 pb-5">
         <div className="space-y-1">
           <h1 className="text-xl font-bold tracking-tight text-zinc-900">
@@ -158,7 +174,7 @@ export const QueueDashboard: React.FC = () => {
             </span>
           </div>
         </div>
-
+        {/* CORE OPERATIONS DROPDOWN MENU */}
         <div className="relative">
           <button
             onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
@@ -224,7 +240,9 @@ export const QueueDashboard: React.FC = () => {
         </div>
       </div>
 
-      <StudentSearchHUD onInsertToQueue={insertQueueReal} />
+      {/* INTAKE FORM COMPONENT HOOKED TO OUR DYNAMIC CATEGORIES ENTRY LOGIC */}
+      <StudentSearchHUD onInsertToQueue={handleManualInsert} />
+
       {/* METRIC INTELLIGENCE BAR GRIDS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
@@ -269,7 +287,6 @@ export const QueueDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* THE LIVE QUEUE WORKSPACE ROW GRID WITH ACTIONS DROPDOWNS */}
       <div className="space-y-4">
         <div className="flex justify-between items-center px-1 select-none">
@@ -295,6 +312,14 @@ export const QueueDashboard: React.FC = () => {
           ) : (
             queue.map((item) => {
               const isActive = item.status === "Active";
+              // ➔ DYNAMIC LOOKUP FOR RENDER LABEL RESOLUTION
+              const categoryMatch = services.find(
+                (s) => s._id === item.serviceId,
+              );
+              const serviceBadgeLabel = categoryMatch
+                ? categoryMatch.name
+                : "Standard Priority";
+
               return (
                 <div
                   key={item._id}
@@ -376,8 +401,9 @@ export const QueueDashboard: React.FC = () => {
                         <span className="text-zinc-400 flex items-center gap-1">
                           <Briefcase className="h-3 w-3" /> Assigned Task:
                         </span>
-                        <span className="px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 font-bold uppercase tracking-wider text-[9px]">
-                          Standard Priority
+                        {/* ➔ NEW DYNAMIC SERVICE TRACK BADGE INSIDE THE CARD */}
+                        <span className="px-1.5 py-0.5 rounded bg-orange-50 border border-orange-100 text-orange-700 font-black uppercase tracking-wider text-[9px]">
+                          {serviceBadgeLabel}
                         </span>
                       </div>
                     </div>
@@ -424,7 +450,8 @@ export const QueueDashboard: React.FC = () => {
             <div className="p-4 bg-zinc-50 border border-zinc-100 rounded-2xl flex flex-col items-center justify-center text-center">
               <div className="p-3 bg-white border border-zinc-200 rounded-xl shadow-sm">
                 <QRCodeSVG
-                  value={`${window.location.origin}/customer/join?branch=${activeBranchId}`}
+                  // {/* ➔ SECURE PASSTHROUGH BINDING OF THE BRANCH ROUTE TO KIOSK LANDING LINES */}
+                  value={`${window.location.origin}/customer/join?branchId=${activeBranchId}`}
                   size={160}
                   level="H"
                   includeMargin={false}
