@@ -6,6 +6,7 @@ export interface IBranch extends Document {
   companyId: string; // 🏢 Links directly back to its Corporate Parent Node
   inviteCode: string; // 🔒 The secure, unique Staff Token (e.g., "AMHL-EMP-92")
   createdAt: Date;
+  businessId: string;
 }
 
 const BranchSchema = new Schema<IBranch>({
