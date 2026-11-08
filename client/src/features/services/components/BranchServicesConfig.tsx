@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "../../../context/AppContext";
 import { Scissors, Plus, X, ArrowRight, Loader2, Sparkles } from "lucide-react";
 
 export const BranchServicesConfig: React.FC = () => {
-  const { branchId } = useParams<{ branchId: string }>();
+  // const { branchId } = useParams<{ branchId: string }>();
   const {
     activeCompany,
     services,

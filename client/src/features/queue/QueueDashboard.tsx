@@ -64,7 +64,7 @@ export const QueueDashboard: React.FC = () => {
     name: string,
     phone: string,
     serviceId: string,
-    email?: string,
+    // email?: string,
   ) => {
     if (!activeBranchId) return;
     try {
