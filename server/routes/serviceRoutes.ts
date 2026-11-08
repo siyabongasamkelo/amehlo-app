@@ -15,14 +15,29 @@ router.post("/setup", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Format array elements for bulk mongoose insertion
-    const serviceDocuments = services.map((serviceName: string) => ({
-      businessId,
-      name: serviceName,
-    }));
+    // 1. Fetch already existing service entries for this business
+    const existingServices = await Service.find({ businessId });
+    const existingNames = new Set(
+      existingServices.map((s) => s.name.toLowerCase().trim()),
+    );
 
-    await Service.insertMany(serviceDocuments, { ordered: false }); // ordered: false ignores minor duplicate friction
+    // 2. Filter out names that are already stored in the database
+    const newServiceNames = services.filter(
+      (serviceName: string) =>
+        !existingNames.has(serviceName.toLowerCase().trim()),
+    );
 
+    // 3. If there are fresh, non-duplicate services, safely bulk insert them
+    if (newServiceNames.length > 0) {
+      const serviceDocuments = newServiceNames.map((serviceName: string) => ({
+        businessId,
+        name: serviceName.trim(),
+      }));
+
+      await Service.insertMany(serviceDocuments, { ordered: false });
+    }
+
+    // 4. Always respond with success so the frontend safely advances to /dashboard
     res.status(201).json({ message: "Services configured successfully." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -68,12 +83,10 @@ router.get(
         console.log(
           `⚠️ Database Alert: Branch ${branchId} exists but has no attached companyId link!`,
         );
-        res
-          .status(200)
-          .json({
-            services: [],
-            message: "Branch has no parent company profile linked yet.",
-          });
+        res.status(200).json({
+          services: [],
+          message: "Branch has no parent company profile linked yet.",
+        });
         return;
       }
 
