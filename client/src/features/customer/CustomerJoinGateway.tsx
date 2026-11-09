@@ -62,7 +62,7 @@ export const CustomerJoinGateway: React.FC = () => {
 
       customerService
         .confirmPhysicalArrival(myTicket._id)
-        .then((data) => {
+        .then(() => {
           // Update local storage to reflect physical arrival validation safely
           const arrivedTicket = { ...myTicket, presenceStatus: "Arrived" };
           localStorage.setItem(
