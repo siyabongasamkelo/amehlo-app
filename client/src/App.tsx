@@ -1,12 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useApp } from "./context/AppContext";
-import { RegisterGateway } from "./features/register/RegisterGateway";
+import { RegisterGateway } from "./features/auth/RegisterGateway";
 import { CreateCompanyGateway } from "./features/company/CreateCompanyGateway";
 import { QueueDashboard } from "./features/queue/QueueDashboard";
 import { BranchManagementGateway } from "./features/branch/BranchManagementGateway";
 import { CustomerJoinGateway } from "./features/customer/CustomerJoinGateway";
 import { RemoteLookupGateway } from "./features/remoteLookupGateway/RemoteLookupGateway";
 import { BranchServicesConfig } from "./features/services/components/BranchServicesConfig";
+import { TermsView } from "./features/terms/TermsView";
+import { PrivacyPolicyView } from "./features/terms/PrivacyPolicyView";
 
 export default function App() {
   const { dbUser, activeCompany, isLoadingProfile } = useApp();
@@ -30,6 +32,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/terms" element={<TermsView />} />
+        <Route path="/privacy" element={<PrivacyPolicyView />} />
+
         {/* 📱 PUBLIC CUSTOMER-FACING SCANNING PORTAL */}
         <Route path="/customer/join" element={<CustomerJoinGateway />} />
 

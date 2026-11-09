@@ -1,0 +1,32 @@
+
+Amehlo Queue — Terms of Service & Privacy Policy
+
+Last Updated: November 2026
+Welcome to Amehlo Queue (“the App”). By using our service to join a virtual queue—whether via scanning an on-site QR code, using an administrator terminal, or searching remotely by a branch phone number—you agree to these basic terms. Please read them carefully.
+
+1. Protection of Personal Information (POPIA Compliance)
+
+In compliance with the South African Protection of Personal Information Act (POPIA), we are committed to safeguarding your personal data:
+• What We Collect: We collect your Name, Mobile Phone Number, and your relative queue status (such as whether you are "Remote" or "Arrived").
+• Purpose of Collection: This data is collected for the sole purpose of identifying your place in line and sending you real-time service updates regarding your turn.
+• Data Retention & Security: Your data is strictly confidential. Active session tokens are automatically archived or erased from our live operational pipeline the moment your turn is marked completed, cancelled, or flagged absent. We will never sell, lease, or share your phone number with third-party marketing companies.
+
+2. Limitation of Liability
+
+Amehlo Queue provides a digital sequencing utility framework on an "as-is" and "as-available" basis:
+• We do not guarantee uninterrupted, error-free, or 100% continuous socket connection lines due to fluctuating mobile network conditions or server hosting variables.
+• Amehlo Queue, its developers, and its operators accept no responsibility or liability for any direct or indirect losses, missed business opportunities, financial disruptions, or damages resulting from missed appointments, technical glitches, or network downtime.
+
+3. Merchant Operational Autonomy
+
+The App acts purely as a software bridge between you and the local business node you are visiting:
+• The final decision to call up, skip, prioritize, or remove an entry from the tracking stream rests entirely with the staff and managers of that specific physical store branch.
+• We do not control merchant operating hours, staff behavior, or the speed of the service lane.
+
+4. Consent to Operational Messages
+
+By inputting your contact number to secure an entry ticket, you give your explicit consent to receive automated operational notifications (such as WebSockets pulses, SMS, or WhatsApp status updates) linked strictly to your current, active queue session. Standard network provider data rates may apply based on your mobile carrier package.
+
+5. Variations and Updates
+
+We reserve the right to refine these terms at any stage as our infrastructure scales. Continued use of the platform constitutes acceptance of any updated compliance frameworks.
