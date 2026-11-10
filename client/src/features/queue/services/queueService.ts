@@ -76,4 +76,18 @@ export const queueService = {
     const response = await axios.get(`${API_URL}/${branchId}/analytics`);
     return response.data;
   },
+
+  // ➔ Fetch multi-branch comparison metrics filtered by an explicit date range
+  getCrossBranchAnalytics: async (
+    startDate: string,
+    endDate: string,
+  ): Promise<any[]> => {
+    const response = await axios.get(
+      `${API_URL.replace("/queue", "/analytics")}/cross-branch`,
+      {
+        params: { startDate, endDate },
+      },
+    );
+    return response.data;
+  },
 };

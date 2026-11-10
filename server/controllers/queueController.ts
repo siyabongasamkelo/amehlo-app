@@ -226,6 +226,68 @@ export const getBranchQueueAnalytics = async (
   }
 };
 
+export const getCrossBranchComparison = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { startDate, endDate, serviceId } = req.query;
+
+    // ➔ 1. Fallback defaults if frontend leaves dates blank (Defaults to last 7 days)
+    const end = endDate ? new Date(endDate as string) : new Date();
+    const start = startDate ? new Date(startDate as string) : new Date();
+    if (!startDate) start.setDate(end.getDate() - 7);
+
+    // ➔ 2. Build dynamic matching criteria
+    const matchStage: any = {
+      completedAt: { $gte: start, $lte: end },
+    };
+
+    // ➔ Bonus: Leverage your serviceId field if frontend wants to drill down
+    if (serviceId) {
+      matchStage.serviceId = serviceId;
+    }
+
+    // ➔ 3. Streamlined high-performance aggregation
+    const branchComparisonData = await CompletionLog.aggregate([
+      { $match: matchStage },
+      {
+        $project: {
+          branchId: 1,
+          waitDurationMins: {
+            $divide: [
+              { $subtract: ["$completedAt", "$addedAt"] },
+              1000 * 60, // Milliseconds to minutes
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$branchId",
+          avgWaitTime: { $avg: "$waitDurationMins" },
+          bestWaitTime: { $min: "$waitDurationMins" },
+          worstWaitTime: { $max: "$waitDurationMins" },
+          totalCompleted: { $sum: 1 },
+        },
+      },
+      { $sort: { avgWaitTime: 1 } },
+    ]);
+
+    const formattedData = branchComparisonData.map((item) => ({
+      branchId: item._id,
+      avgWaitTime: Math.round(item.avgWaitTime || 0),
+      bestWaitTime: Math.round(item.bestWaitTime || 0),
+      worstWaitTime: Math.round(item.worstWaitTime || 0),
+      totalCompleted: item.totalCompleted,
+    }));
+
+    res.status(200).json(formattedData);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 export const verifyStoreArrival = async (
   req: Request,
   res: Response,
