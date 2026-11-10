@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useApp } from "../../context/AppContext";
+import { useClerk } from "@clerk/clerk-react";
 import { StudentSearchHUD } from "./components/StudentSearchHUD";
 import { TvDisplay } from "./components/TvDisplay";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -18,6 +19,7 @@ import {
   Briefcase,
   QrCode,
   Loader2,
+  LogOut,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
@@ -28,7 +30,7 @@ export const QueueDashboard: React.FC = () => {
     branches,
     activeBranchId,
     queue,
-    services, // ➔ Freshly integrated multi-service lookup store
+    services,
     rawAnalyticsLogs,
     isLoadingQueue,
     setActiveBranchId,
@@ -40,6 +42,7 @@ export const QueueDashboard: React.FC = () => {
     worstWaitTime,
   } = useApp();
 
+  const { signOut } = useClerk();
   const [isFullscreenDisplay, setIsFullscreenDisplay] =
     useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -59,12 +62,10 @@ export const QueueDashboard: React.FC = () => {
     currentBranch?.phone || "035 111 2222",
   );
 
-  // ➔ Manual drop-in action wrapper updating signature to accept target categories
   const handleManualInsert = async (
     name: string,
     phone: string,
     serviceId: string,
-    // email?: string,
   ) => {
     if (!activeBranchId) return;
     try {
@@ -73,7 +74,21 @@ export const QueueDashboard: React.FC = () => {
       console.error("Manual lane injection failure:", err);
     }
   };
-  // --- SUB-PANEL REDIRECT COCKPIT OVERLAYS ---
+
+  const handleTerminalSignOut = async () => {
+    const confirmExit = window.confirm(
+      "Are you sure you want to log out of this terminal station?",
+    );
+    if (!confirmExit) return;
+    try {
+      await signOut();
+      navigate("/login");
+    } catch (err) {
+      console.error("Failed to disconnect session:", err);
+    }
+  };
+
+  // --- SUB-PANEL REDIRECT COCKPIT OVERLAYS INTERCEPTORS ---
   if (isFullscreenDisplay) {
     return (
       <TvDisplay
@@ -113,6 +128,7 @@ export const QueueDashboard: React.FC = () => {
     );
   }
 
+  // Content rendering continues smoothly in Piece 2...
   return (
     <div className="max-w-7xl w-full mx-auto p-4 md:p-8 space-y-6 animate-in fade-in duration-200">
       {/* ➔ MAIN HEADER & BRANCH SWITCHER CONTROLS */}
@@ -174,6 +190,7 @@ export const QueueDashboard: React.FC = () => {
             </span>
           </div>
         </div>
+
         {/* CORE OPERATIONS DROPDOWN MENU */}
         <div className="relative">
           <button
@@ -235,11 +252,20 @@ export const QueueDashboard: React.FC = () => {
                   Manage System Branches
                 </button>
               )}
+
+              {/* 🎯 SEPARATED TERMINAL SESSION LOGOUT LINK */}
+              <div className="h-px bg-zinc-100 my-1" />
+              <button
+                onMouseDown={handleTerminalSignOut}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 hover:text-red-700 rounded-xl transition-all cursor-pointer text-left"
+              >
+                <LogOut className="h-4 w-4 text-red-500" />
+                Log Out of Station
+              </button>
             </div>
           )}
         </div>
       </div>
-
       {/* INTAKE FORM COMPONENT HOOKED TO OUR DYNAMIC CATEGORIES ENTRY LOGIC */}
       <StudentSearchHUD onInsertToQueue={handleManualInsert} />
 
@@ -449,7 +475,6 @@ export const QueueDashboard: React.FC = () => {
           )}
         </div>
       </div>
-
       {/* 🪟 FLOATING STATION QR GATEWAY OVERLAY MODAL */}
       {isQrOpen && currentBranch && (
         <div className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -468,7 +493,6 @@ export const QueueDashboard: React.FC = () => {
             <div className="p-4 bg-zinc-50 border border-zinc-100 rounded-2xl flex flex-col items-center justify-center text-center">
               <div className="p-3 bg-white border border-zinc-200 rounded-xl shadow-sm">
                 <QRCodeSVG
-                  // {/* ➔ SECURE PASSTHROUGH BINDING OF THE BRANCH ROUTE TO KIOSK LANDING LINES */}
                   value={`${window.location.origin}/customer/join?branchId=${activeBranchId}`}
                   size={160}
                   level="H"

@@ -9,6 +9,7 @@ import { RemoteLookupGateway } from "./features/remoteLookupGateway/RemoteLookup
 import { BranchServicesConfig } from "./features/services/components/BranchServicesConfig";
 import { TermsView } from "./features/terms/TermsView";
 import { PrivacyPolicyView } from "./features/terms/PrivacyPolicyView";
+import { LoginGateway } from "./features/auth/LoginGateway";
 
 export default function App() {
   const { dbUser, activeCompany, isLoadingProfile } = useApp();
@@ -40,6 +41,25 @@ export default function App() {
 
         {/* 📱 PUBLIC REMOTE SEARCH ENGINE PORTAL */}
         <Route path="/search" element={<RemoteLookupGateway />} />
+
+        <Route
+          path="/login"
+          element={
+            dbUser ? (
+              dbUser.role === "owner" ? (
+                activeCompany ? (
+                  <Navigate to="/branches" replace />
+                ) : (
+                  <Navigate to="/create-company" replace />
+                )
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
+            ) : (
+              <LoginGateway />
+            )
+          }
+        />
 
         {/* Entry Interceptor: Route admin paths based on verification roles */}
         <Route
