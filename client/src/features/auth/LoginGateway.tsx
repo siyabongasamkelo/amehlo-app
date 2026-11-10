@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { SignIn, SignUp } from "@clerk/clerk-react";
 import { ShieldCheck } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export const LoginGateway: React.FC = () => {
   const [isSignInView, setIsSignInView] = useState<boolean>(true);
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col justify-center items-center p-4 font-sans antialiased text-zinc-800">
