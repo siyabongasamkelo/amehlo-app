@@ -1,30 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "../../../context/AppContext";
 import { Scissors, Plus, X, ArrowRight, Loader2, Sparkles } from "lucide-react";
+import { useServices } from "../../services/context/ServiceContext";
+import { useCompany } from "../../company/context/CompanyContext";
+import { useBranch } from "@/features/branch/context/BranchContext";
 
 export const BranchServicesConfig: React.FC = () => {
-  // const { branchId } = useParams<{ branchId: string }>();
-  const {
-    activeCompany,
-    services,
-    configureInitialServices,
-    isLoadingServices,
-    loadBusinessServices,
-  } = useApp();
+  const { services, isLoadingServices, configureInitialServices } =
+    useServices();
+  const { activeCompany } = useCompany();
+  const { activeBranchId } = useBranch();
   const navigate = useNavigate();
 
   const [inputVal, setInputVal] = useState("");
   const [localServices, setLocalServices] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Sync with existing backend records if they already exist
-  useEffect(() => {
-    if (activeCompany?._id) {
-      loadBusinessServices(activeCompany._id);
-    }
-  }, [activeCompany?._id]);
 
   useEffect(() => {
     if (services.length > 0) {
@@ -66,7 +57,8 @@ export const BranchServicesConfig: React.FC = () => {
     setError(null);
 
     try {
-      await configureInitialServices(activeCompany._id, localServices);
+      // await configureInitialServices(activeCompany._id, localServices);
+      await configureInitialServices(activeBranchId, localServices);
       navigate("/dashboard");
     } catch (err: any) {
       setError("Could not bind workspace channels. Please try again.");

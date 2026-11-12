@@ -51,9 +51,20 @@ export const queueService = {
     return response.data.queue;
   },
 
-  // ➔ Log historical metrics data points via (POST /api/queue/:id/complete)
-  completeTurn: async (ticketId: string): Promise<IQueueItem[]> => {
-    const response = await axios.post(`${API_URL}/${ticketId}/complete`);
+  // ➔ Activate ticket counter processing path via (POST /api/queue/:id/start)
+  startTurn: async (ticketId: string): Promise<IQueueItem[]> => {
+    const response = await axios.post(`${API_URL}/${ticketId}/start`);
+    return response.data.queue;
+  },
+
+  // ➔ Forward worker clerkId to clear backend database validation tracks safely
+  completeTurn: async (
+    ticketId: string,
+    servedById: string,
+  ): Promise<IQueueItem[]> => {
+    const response = await axios.post(`${API_URL}/${ticketId}/complete`, {
+      servedById,
+    });
     return response.data.queue;
   },
 

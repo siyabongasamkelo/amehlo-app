@@ -4,7 +4,9 @@ export interface IUser extends Document {
   clerkId: string; // The unique ID from Clerk (e.g., "user_2N6w...")
   name: string;
   email: string;
-  role: "owner" | "worker";
+  phone?: string; // Useful for student WhatsApp queue notifications
+  role: "owner" | "worker" | "student";
+  assignedCompanyId?: string;
   assignedBranchId?: string; // Workers are strictly sandboxed to this physical terminal
   createdAt: Date;
 }
@@ -19,7 +21,13 @@ const UserSchema = new Schema<IUser>({
     trim: true,
     lowercase: true,
   },
-  role: { type: String, enum: ["owner", "worker"], required: true },
+  phone: { type: String, trim: true, default: null },
+  role: {
+    type: String,
+    enum: ["owner", "worker", "student"],
+    required: true,
+  },
+  assignedCompanyId: { type: String, default: null },
   assignedBranchId: { type: String, default: null }, // Populated if role === "worker"
   createdAt: { type: Date, default: Date.now },
 });

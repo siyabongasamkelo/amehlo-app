@@ -5,19 +5,22 @@ import {
   skipTurn,
   purgeGhostClient,
   getBranchQueue,
-  getBranchQueueAnalytics, // ➔ Import the new analytics function
+  getBranchQueueAnalytics,
   verifyStoreArrival,
+  startService,
+  getStudentActiveTicket,
 } from "../controllers/queueController.js";
 
 const router = Router();
 
+router.get("/student/:clerkId", getStudentActiveTicket); // ➔ Must come BEFORE /:branchId!
 router.get("/:branchId", getBranchQueue);
-router.get("/:branchId/analytics", getBranchQueueAnalytics); // ➔ 🎯 Mount the analytics endpoint
+router.get("/:branchId/analytics", getBranchQueueAnalytics);
 router.post("/join", joinQueue);
 router.post("/:id/skip", skipTurn);
 router.post("/:id/complete", completeTurn);
 router.delete("/:id/ghost", purgeGhostClient);
-// Mount this right below your other route parameters in
 router.post("/:id/arrive", verifyStoreArrival);
+router.post("/:id/start", startService);
 
 export default router;

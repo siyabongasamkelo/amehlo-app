@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { customerService } from "./services/customerService";
+import type { IStaffData } from "./services/customerService";
 import { io } from "socket.io-client";
 import {
   QrCode,
@@ -10,6 +11,8 @@ import {
   CheckCircle2,
   Briefcase,
   MapPin,
+  Sparkles,
+  User,
 } from "lucide-react";
 import axios from "axios";
 
@@ -19,23 +22,26 @@ export const CustomerJoinGateway: React.FC = () => {
   // Match the exact branch key emitted from your dashboard QR Code layout
   const branchId = searchParams.get("branchId") || searchParams.get("branch");
 
-  // Form Fields
+  // Core Form Fields State
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null); // ➔ 🎯 Tracks requested favorite staff ID
 
-  // System States
+  // Dynamic Workspace Data Cache States
+  const [availableServices, setAvailableServices] = useState<any[]>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(false);
+  const [availableStaff, setAvailableStaff] = useState<IStaffData[]>([]); // ➔ 👩‍🎨 Live workers array
+  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
+
+  // Layout Loading/Submission Actions Locks
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLeaving, setIsLeaving] = useState(false);
-  const [isVerifyingArrival, setIsVerifyingArrival] = useState(false); // 🎯 Arrival loading lock
+  const [isVerifyingArrival, setIsVerifyingArrival] = useState(false);
 
-  // Custom Services Cache State
-  const [availableServices, setAvailableServices] = useState<any[]>([]);
-  const [isLoadingServices, setIsLoadingServices] = useState(false);
-
-  // Auto Memory Hydration on Page Refresh
+  // Persistent Local Memory Engine Hooks
   const [myTicket, setMyTicket] = useState<any | null>(() => {
     const saved = localStorage.getItem("amehlo_active_ticket");
     return saved ? JSON.parse(saved) : null;
@@ -49,21 +55,19 @@ export const CustomerJoinGateway: React.FC = () => {
     import.meta.env.VITE_APP_ENV === "development"
       ? "http://localhost:5000"
       : "https://amehlo-app.onrender.com";
-  // 📡 🎯 DETECT QR SCAN ARRIVAL INTERCEPTOR ON MOUNT
+
+  // 📡 1. DETECT QR PHYSICAL ARRIVAL SWAP PULSE ON PAGE MOUNT
   useEffect(() => {
     if (!branchId || !myTicket) return;
 
-    // Check if the saved local ticket matches this scanned branch and is still marked remote
     if (
       myTicket.branchId === branchId &&
       myTicket.presenceStatus === "Remote"
     ) {
       setIsVerifyingArrival(true);
-
       customerService
         .confirmPhysicalArrival(myTicket._id)
         .then(() => {
-          // Update local storage to reflect physical arrival validation safely
           const arrivedTicket = { ...myTicket, presenceStatus: "Arrived" };
           localStorage.setItem(
             "amehlo_active_ticket",
@@ -71,37 +75,41 @@ export const CustomerJoinGateway: React.FC = () => {
           );
           setMyTicket(arrivedTicket);
         })
-        .catch((err) => {
-          console.error("Presence check-in auto-trigger failed:", err);
-        })
-        .finally(() => {
-          setIsVerifyingArrival(false);
-        });
+        .catch((err) =>
+          console.error("Presence check-in auto-trigger failed:", err),
+        )
+        .finally(() => setIsVerifyingArrival(false));
     }
   }, [branchId, myTicket?._id]);
 
-  // 📡 FETCH ACTIVE LANES FOR THIS SPECIFIC BRANCH INSTANTLY ON MOUNT
+  // 📡 2. UNIFIED WORKSPACE DEPARTMENTS & LIVE STAFF PROFILES INITIAL HYDRATOR
   useEffect(() => {
     if (!branchId) return;
 
-    const fetchLanes = async () => {
+    const pullWorkspaceTelemetry = async () => {
       setIsLoadingServices(true);
+      setIsLoadingStaff(true);
       try {
-        const baseUrl = SOCKET_URL;
-        const res = await axios.get(
-          `${baseUrl}/api/services/branch/${branchId}`,
+        // Fetch custom services categories matching the branch parent profile
+        const srvRes = await axios.get(
+          `${SOCKET_URL}/api/services/branch/${branchId}`,
         );
-        setAvailableServices(res.data.services || []);
+        setAvailableServices(srvRes.data.services || []);
+
+        // Fetch specialized frontline workers assigned dynamically to this branch terminal
+        const staffData = await customerService.getBranchWorkers(branchId);
+        setAvailableStaff(staffData);
       } catch (err) {
-        console.error("Failed loading mobile lane routes:", err);
+        console.error("Failed loading configuration vectors:", err);
       } finally {
         setIsLoadingServices(false);
+        setIsLoadingStaff(false);
       }
     };
 
-    fetchLanes();
+    pullWorkspaceTelemetry();
   }, [branchId]);
-  // 📡 WEBSOCKET CONNECTION LIFECYCLE MANAGEMENT LOOP
+  // 📡 3. WEBSOCKET REAL-TIME POSITION TRACKING ENGINE LOGIC LOOP
   useEffect(() => {
     if (!branchId || !myTicket || myTicket.status === "Completed") return;
 
@@ -130,7 +138,6 @@ export const CustomerJoinGateway: React.FC = () => {
 
       if (freshRecord) {
         setLivePosition(freshRecord.position);
-        // Retain the local presenceStatus field across server state sync pulses
         localStorage.setItem(
           "amehlo_active_ticket",
           JSON.stringify({
@@ -164,7 +171,7 @@ export const CustomerJoinGateway: React.FC = () => {
     };
   }, [branchId, myTicket?._id, myTicket?.status]);
 
-  // ➔ HANDLER: SUBMIT FORM AND REGISTER TOKEN IN PIPELINE
+  // ➔ ACTION HANDLER: SUBMIT DATA TO API AND SECURE SLOT IN THE DB LINE
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!branchId) {
@@ -180,7 +187,7 @@ export const CustomerJoinGateway: React.FC = () => {
     setError(null);
 
     try {
-      // Defaults to true when booking through standard mobile web interface (Remote check-in)
+      // ⚡ UPDATED: Forwards selectedWorkerId string or null smoothly downstream!
       const ticket = await customerService.joinQueueFromMobile(
         branchId,
         name.trim(),
@@ -188,6 +195,7 @@ export const CustomerJoinGateway: React.FC = () => {
         selectedServiceId,
         email.trim() || undefined,
         true,
+        selectedWorkerId,
       );
 
       localStorage.setItem("amehlo_active_ticket", JSON.stringify(ticket));
@@ -204,6 +212,7 @@ export const CustomerJoinGateway: React.FC = () => {
     }
   };
 
+  // ➔ ACTION HANDLER: DISCARD SPOT AND SAFELY EXIT LINE
   const handleLeaveQueue = async () => {
     if (!myTicket?._id) return;
     const confirmLeave = window.confirm(
@@ -221,6 +230,7 @@ export const CustomerJoinGateway: React.FC = () => {
       setPhone("");
       setEmail("");
       setSelectedServiceId("");
+      setSelectedWorkerId(null);
     } catch (err) {
       console.error("Failed to cleanly exit tracking pipeline:", err);
       alert("Could not remove you from the live line. Please try again.");
@@ -228,8 +238,7 @@ export const CustomerJoinGateway: React.FC = () => {
       setIsLeaving(false);
     }
   };
-
-  // 📱 INTERCEPTOR STATE: AUTOMATIC QR ARRIVAL SYNC PULSE
+  // 📱 SCREEN INTERCEPTOR: DYNAMIC QR ARRIVAL PROGRESS SYNC LOCK
   if (isVerifyingArrival) {
     return (
       <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-6 text-center space-y-3 font-sans">
@@ -245,7 +254,7 @@ export const CustomerJoinGateway: React.FC = () => {
     );
   }
 
-  // 📱 INVALID STATE BARRIER INTERCEPTOR
+  // 📱 SCREEN INTERCEPTOR: INVALID MALFORMED QR LOCATION BARRIER
   if (!branchId) {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4">
@@ -263,7 +272,7 @@ export const CustomerJoinGateway: React.FC = () => {
     );
   }
 
-  // 📱 SCREEN STATE B: CUSTOMER IN LINE (REAL-TIME PROGRESS MONITOR)
+  // 📱 SCREEN STATE B: CLIENT IN LINE (REAL-TIME PROGRESS DASHBOARD VIEW)
   if (myTicket) {
     const isRemote = myTicket.presenceStatus === "Remote";
 
@@ -288,7 +297,7 @@ export const CustomerJoinGateway: React.FC = () => {
             </p>
           </div>
 
-          {/* 🎯 SUB-BADGE CONTEXT INDICATING PRESENCE MATRIX LAYER */}
+          {/* REAL-TIME RADAR PRESENCE CONTEXT OVERLAY */}
           <div className="flex justify-center select-none">
             <span
               className={`inline-flex items-center gap-1 text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wide border ${
@@ -300,21 +309,21 @@ export const CustomerJoinGateway: React.FC = () => {
               {isRemote ? (
                 <>
                   <MapPin className="h-3 w-3 text-amber-600" /> In Transit
-                  (Remote Checking)
+                  (Remote Queue Track)
                 </>
               ) : (
                 <>
-                  <UserCheck className="h-3 w-3 text-emerald-600" /> Physical
-                  Presence (Arrived)
+                  <UserCheck className="h-3 w-3 text-emerald-600" /> Inside
+                  Store (Validated Present)
                 </>
               )}
             </span>
           </div>
 
           {myTicket.status === "Completed" ? (
-            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 text-emerald-800 text-xs font-semibold">
-              Your turn is complete. Thank you for using Amehlo automated queue
-              infrastructure terminals!
+            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 text-emerald-800 text-xs font-semibold animate-in fade-in duration-200">
+              Your turn is complete. Thank you for using Amehlo automated line
+              infrastructure tracking terminals!
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -354,7 +363,7 @@ export const CustomerJoinGateway: React.FC = () => {
 
           <p className="text-[11px] text-zinc-400 font-medium leading-relaxed max-w-xs mx-auto select-none">
             {myTicket.status !== "Completed" &&
-              "Keep this window open. Your terminal tracking coordinates sync automatically via event-driven channels."}
+              "Keep this browser tab open. Your terminal tracking coordinates sync automatically via event-driven socket pipelines."}
           </p>
 
           {myTicket.status !== "Completed" && (
@@ -377,7 +386,7 @@ export const CustomerJoinGateway: React.FC = () => {
       </div>
     );
   }
-  // 📱 SCREEN STATE A: INTAKE REGISTRATION & SERVICE MATCH SELECTION
+  // 📱 SCREEN STATE A: INTAKE REGISTRATION & MULTI-LANE SPECIALIST MATCH SELECTION
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-4 font-sans antialiased">
       <div className="max-w-md w-full bg-white border border-zinc-200 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in duration-200">
@@ -401,10 +410,11 @@ export const CustomerJoinGateway: React.FC = () => {
         )}
 
         <form onSubmit={handleJoin} className="space-y-5">
-          {/* MODERN INTERACTIVE SERVICE MATCH SELECTION MATRIX */}
+          {/* 1. DEPARTMENT / SERVICE MATRICES CHANNELS */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Briefcase className="h-3.5 w-3.5" /> Select Required Service Line
+              <Briefcase className="h-3.5 w-3.5" /> 1. Select Required Service
+              Line
             </label>
 
             {isLoadingServices ? (
@@ -417,7 +427,7 @@ export const CustomerJoinGateway: React.FC = () => {
                 This branch has not provisioned custom service lanes yet.
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-2 max-h-[160px] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 gap-2 max-h-[140px] overflow-y-auto pr-1 scrollbar-thin">
                 {availableServices.map((srv) => {
                   const isSelected = selectedServiceId === srv._id;
                   return (
@@ -427,17 +437,13 @@ export const CustomerJoinGateway: React.FC = () => {
                       onClick={() => setSelectedServiceId(srv._id)}
                       className={`w-full text-left px-4 py-3 text-xs font-bold rounded-xl border transition-all flex items-center justify-between group cursor-pointer ${
                         isSelected
-                          ? "bg-orange-50/50 border-orange-500 text-orange-700 shadow-sm shadow-orange-50"
+                          ? "bg-orange-50/50 border-orange-500 text-orange-700 shadow-sm"
                           : "bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100/70"
                       }`}
                     >
                       <span className="truncate">{srv.name}</span>
                       <div
-                        className={`h-4 w-4 rounded-full border flex items-center justify-center transition-all shrink-0 ${
-                          isSelected
-                            ? "border-orange-500 bg-orange-500 text-white animate-in zoom-in-50"
-                            : "border-zinc-300 bg-white"
-                        }`}
+                        className={`h-4 w-4 rounded-full border flex items-center justify-center transition-all ${isSelected ? "border-orange-500 bg-orange-500 text-white" : "border-zinc-300 bg-white"}`}
                       >
                         {isSelected && (
                           <div className="h-1.5 w-1.5 rounded-full bg-white" />
@@ -450,6 +456,78 @@ export const CustomerJoinGateway: React.FC = () => {
             )}
           </div>
 
+          {/* 2. PREMIUM STAFF / FAVOURITE PROFESSIONAL CHOICE SELECTION MATRIX */}
+          <div className="space-y-2 pt-1 border-t border-dashed border-zinc-100">
+            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-orange-500" /> 2. Choose
+              Your Professional (Optional)
+            </label>
+
+            {isLoadingStaff ? (
+              <div className="flex items-center justify-center py-6 text-zinc-400 text-xs gap-2 bg-zinc-50 border border-zinc-100 rounded-2xl">
+                <Loader2 className="h-4 w-4 animate-spin text-orange-500" />{" "}
+                Linking available roster...
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 max-h-[140px] overflow-y-auto pr-1 scrollbar-thin">
+                {/* 🌟 SHARED SYSTEM POOL / QUICK DISPATCH TOGGLE OPTION */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedWorkerId(null)}
+                  className={`w-full text-left px-4 py-3 text-xs font-bold rounded-xl border transition-all flex items-center justify-between group cursor-pointer ${
+                    selectedWorkerId === null
+                      ? "bg-orange-50/50 border-orange-500 text-orange-700 shadow-sm"
+                      : "bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100/70"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Timer className="h-3.5 w-3.5 text-zinc-400 group-hover:text-orange-500 transition-colors" />
+                    <span className="truncate">
+                      Next Available Specialist (Fastest Route)
+                    </span>
+                  </div>
+                  <div
+                    className={`h-4 w-4 rounded-full border flex items-center justify-center transition-all ${selectedWorkerId === null ? "border-orange-500 bg-orange-500 text-white" : "border-zinc-300 bg-white"}`}
+                  >
+                    {selectedWorkerId === null && (
+                      <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                    )}
+                  </div>
+                </button>
+
+                {/* 👩‍🎨 INDIVIDUAL LIVE STATION EMPLOYEES ROSTER CHIPS */}
+                {availableStaff.map((staff) => {
+                  const isSelected = selectedWorkerId === staff.clerkId;
+                  return (
+                    <button
+                      key={staff.clerkId}
+                      type="button"
+                      onClick={() => setSelectedWorkerId(staff.clerkId)}
+                      className={`w-full text-left px-4 py-3 text-xs font-bold rounded-xl border transition-all flex items-center justify-between group cursor-pointer ${
+                        isSelected
+                          ? "bg-orange-50/50 border-orange-500 text-orange-700 shadow-sm"
+                          : "bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100/70"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <User className="h-3.5 w-3.5 text-zinc-400 group-hover:text-zinc-600 transition-colors" />
+                        <span className="truncate">{staff.name}</span>
+                      </div>
+                      <div
+                        className={`h-4 w-4 rounded-full border flex items-center justify-center transition-all ${isSelected ? "border-orange-500 bg-orange-500 text-white" : "border-zinc-300 bg-white"}`}
+                      >
+                        {isSelected && (
+                          <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 3. REFERENCE METADATA INFORMATION CARD MATRIX */}
           <div className="space-y-4 pt-1 border-t border-dashed border-zinc-100">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">

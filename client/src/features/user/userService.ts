@@ -12,8 +12,10 @@ export interface IUserData {
   clerkId: string;
   name: string;
   email: string;
-  role: "owner" | "worker";
+  role: "owner" | "worker" | "student";
+  phone: string;
   inviteCode?: string;
+  assignedCompanyId: string;
 }
 
 export const userService = {

@@ -120,16 +120,42 @@ export const getBranchByPhone = async (
     });
 
     if (!matchedBranch) {
-      res
-        .status(404)
-        .json({
-          error: "No active queue terminal found matching this phone number.",
-        });
+      res.status(404).json({
+        error: "No active queue terminal found matching this phone number.",
+      });
       return;
     }
 
     res.status(200).json({ branch: matchedBranch });
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ➔ FETCH SINGLE PHYSICAL BRANCH NODE BY ID (GET /api/branches/:id)
+export const getBranchById = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // 🎯 Guard clause: Verify it's a valid MongoDB ObjectId before querying
+    if (!id || id.length !== 24) {
+      res.status(400).json({ error: "Malformed branch identity reference." });
+      return;
+    }
+
+    const branch = await Branch.findById(id);
+
+    if (!branch) {
+      res.status(404).json({ error: "Physical station terminal not found." });
+      return;
+    }
+
+    res.status(200).json({ branch });
+  } catch (error: any) {
+    console.error("Fetch single branch failure:", error);
     res.status(500).json({ error: error.message });
   }
 };

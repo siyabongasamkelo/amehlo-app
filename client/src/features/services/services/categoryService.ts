@@ -13,7 +13,6 @@ export interface IServiceData {
 }
 
 export const categoryService = {
-  // ➔ Mass seed categories during initial branch onboarding configurations
   setupServices: async (
     businessId: string,
     services: string[],
@@ -21,9 +20,10 @@ export const categoryService = {
     await axios.post(`${API_URL}/setup`, { businessId, services });
   },
 
-  // ➔ Fetch active functional services configured for a specific workplace node
-  getBusinessServices: async (businessId: string): Promise<IServiceData[]> => {
-    const response = await axios.get(`${API_URL}/${businessId}`);
+  // ➔ Updated to query via branchId so both owners and workers clear the matching loop seamlessly
+  getBusinessServices: async (branchId: string): Promise<IServiceData[]> => {
+    const response = await axios.get(`${API_URL}/branch/${branchId}`);
+
     return response.data.services;
   },
 };

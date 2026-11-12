@@ -5,6 +5,12 @@ import "./index.css";
 import { ClerkProvider } from "@clerk/clerk-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProvider } from "./context/AppContext.tsx";
+import { QueueProvider } from "./features/queue/context/QueueContext.tsx";
+import { ServiceProvider } from "./features/services/context/ServiceContext.tsx";
+// import { WorkspaceProvider } from "./features/branch/context/WorkspaceContext.tsx";
+import { BranchProvider } from "./features/branch/context/BranchContext.tsx";
+import { CompanyProvider } from "./features/company/context/CompanyContext.tsx";
+import { StudentProvider } from "./features/student/context/StudentContext.tsx";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 console.log("Publishable Key:", PUBLISHABLE_KEY);
@@ -29,7 +35,17 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
       <QueryClientProvider client={queryClient}>
         <AppProvider>
-          <App />
+          <StudentProvider>
+            <CompanyProvider>
+              <BranchProvider>
+                <ServiceProvider>
+                  <QueueProvider>
+                    <App />
+                  </QueueProvider>
+                </ServiceProvider>
+              </BranchProvider>
+            </CompanyProvider>
+          </StudentProvider>
         </AppProvider>
       </QueryClientProvider>
     </ClerkProvider>

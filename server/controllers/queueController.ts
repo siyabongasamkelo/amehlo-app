@@ -1,32 +1,111 @@
 import { Request, Response } from "express";
 import { QueueTicket, CompletionLog } from "../models/QueueTicket.js";
+import { User } from "../models/User.js";
+import { Enrollment } from "../models/Enrollment.js";
 import { resequenceBranchQueue } from "../utils/queueEngine.js";
-import { io } from "../index.js"; // ➔ Import the active 'io' socket engine instance!
+import { io } from "../index.js";
 
 // ➔ JOIN QUEUE (POST /api/queue/join)
 // 1. UPDATE JOIN QUEUE (Modify your existing joinQueue function)
+
+// ➔ JOIN QUEUE PIPELINE (POST /api/queue/join)
 export const joinQueue = async (req: Request, res: Response): Promise<void> => {
   try {
-    // ➔ Add presenceStatus check from request body (Defaults to "Remote" if not sent)
-    const { name, phone, email, branchId, serviceId, isRemoteJoin } = req.body;
-    if (!name || !phone || !branchId || !serviceId) {
-      res.status(400).json({ error: "Missing required booking metrics." });
-      return;
-    }
-
-    const currentCount = await QueueTicket.countDocuments({ branchId });
-    const randomTicket = Math.floor(100 + Math.random() * 900).toString();
-
-    const newTicket = new QueueTicket({
-      ticketId: randomTicket,
-      branchId,
-      serviceId,
+    const {
+      studentClerkId, // ➔ Sent when a logged-in student joins via QR or Online
       name,
       phone,
       email,
-      position: currentCount + 1,
-      // 🎯 If joined from app dashboard/home, flag as Remote. If scanned inside, it can be Arrived.
+      branchId,
+      serviceId,
+      isRemoteJoin,
+      preferredWorkerId,
+    } = req.body;
+
+    if (!branchId || !serviceId) {
+      res
+        .status(400)
+        .json({ error: "Missing required branch or service selection." });
+      return;
+    }
+
+    let resolvedName = name?.trim();
+    let resolvedPhone = phone?.trim();
+    let resolvedEmail = email?.trim();
+
+    // 🛡️ VERIFIED STUDENT GATEKEEPER & ENROLLMENT CHECK
+    if (studentClerkId) {
+      const student = await User.findOne({
+        clerkId: studentClerkId,
+        role: "student",
+      });
+
+      if (!student) {
+        res.status(404).json({ error: "Student profile not found." });
+        return;
+      }
+
+      // 1. Block duplicate active tickets for the same student
+      const existingTicket = await QueueTicket.findOne({ studentClerkId });
+      if (existingTicket) {
+        res.status(400).json({
+          error: "You already have an active ticket in the queue.",
+          ticket: existingTicket,
+        });
+        return;
+      }
+
+      // 2. Verify active paid enrollment with remaining lessons
+      const activeEnrollment = await Enrollment.findOne({
+        studentClerkId,
+        status: "active",
+      });
+
+      if (!activeEnrollment || !activeEnrollment.isPaid) {
+        res.status(403).json({
+          error:
+            "Payment required: Please pay for your lesson bundle before joining the queue.",
+        });
+        return;
+      }
+
+      if (activeEnrollment.lessonsRemaining <= 0) {
+        res.status(403).json({
+          error:
+            "0 lessons remaining: Please top up your course bundle to book another lesson.",
+        });
+        return;
+      }
+
+      // 3. Auto-fill verified details directly from the student's MongoDB profile
+      resolvedName = student.name;
+      resolvedPhone = student.phone || resolvedPhone || "No Phone";
+      resolvedEmail = student.email || resolvedEmail;
+    }
+
+    if (!resolvedName || !resolvedPhone) {
+      res.status(400).json({ error: "Missing student name or contact phone." });
+      return;
+    }
+
+    const currentWaitingCount = await QueueTicket.countDocuments({
+      branchId,
+      status: "Waiting",
+    });
+
+    const randomTicketNum = Math.floor(100 + Math.random() * 900).toString();
+
+    const newTicket = new QueueTicket({
+      ticketId: randomTicketNum,
+      branchId,
+      serviceId,
+      studentClerkId: studentClerkId || null,
+      name: resolvedName,
+      phone: resolvedPhone,
+      email: resolvedEmail,
+      position: currentWaitingCount + 1,
       presenceStatus: isRemoteJoin === false ? "Arrived" : "Remote",
+      preferredWorkerId: preferredWorkerId?.trim() || null,
     });
 
     await newTicket.save();
@@ -35,20 +114,22 @@ export const joinQueue = async (req: Request, res: Response): Promise<void> => {
     const updatedQueue = await QueueTicket.find({ branchId }).sort({
       position: 1,
     });
+
     io.to(branchId).emit("queue_updated", updatedQueue);
 
     res.status(201).json({
-      message: "Joined pipeline successfully",
+      message: "Joined operational queue pipeline successfully",
       ticket: newTicket,
       queue: updatedQueue,
     });
   } catch (error: any) {
+    console.error("Join queue processing engine failure:", error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// ➔ COMPLETE TURN (POST /api/queue/:id/complete)
-export const completeTurn = async (
+// ➔ START SERVICE / SAFETY PROMPT CONFIRMED (POST /api/queue/:id/start)
+export const startService = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
@@ -57,16 +138,98 @@ export const completeTurn = async (
     const ticket = await QueueTicket.findById(id);
 
     if (!ticket) {
-      res.status(404).json({ error: "Active lane ticket not found" });
+      res
+        .status(404)
+        .json({ error: "Active lane ticket reference not found." });
       return;
     }
+
+    // Flip status track to Active and lock down the face-to-face counter timer stamp
+    ticket.status = "Active";
+    ticket.startedServiceAt = new Date();
+    await ticket.save();
+
+    const freshQueue = await QueueTicket.find({
+      branchId: ticket.branchId,
+    }).sort({ position: 1 });
+    io.to(ticket.branchId).emit("queue_updated", freshQueue);
+
+    res.status(200).json({
+      message: "Service lane activated successfully.",
+      queue: freshQueue,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ➔ COMPLETE TURN, ARCHIVE LOG & DEDUCT 1 LESSON CREDIT (POST /api/queue/:id/complete)
+export const completeTurn = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { servedById } = req.body;
+
+    if (!servedById) {
+      res.status(400).json({
+        error:
+          "Validation failed: Identity of the worker node is required to close turns.",
+      });
+      return;
+    }
+
+    const ticket = await QueueTicket.findById(id);
+    if (!ticket) {
+      res.status(404).json({ error: "Active lane ticket not found." });
+      return;
+    }
+
+    const now = new Date();
+    const addedTime = new Date(ticket.addedAt).getTime();
+    const startTime = ticket.startedServiceAt
+      ? new Date(ticket.startedServiceAt).getTime()
+      : now.getTime();
+
+    const waitDurationMins = Math.max(
+      0,
+      Math.round((startTime - addedTime) / 1000 / 60),
+    );
+    const handlingDurationMins = Math.max(
+      1,
+      Math.round((now.getTime() - startTime) / 1000 / 60),
+    );
 
     await CompletionLog.create({
       ticketId: ticket.ticketId,
       branchId: ticket.branchId,
-      serviceId: ticket.serviceId, // ➔ Transferred to metrics history engine
+      serviceId: ticket.serviceId,
+      studentClerkId: ticket.studentClerkId || null,
+      servedById,
+      waitDurationMins,
+      handlingDurationMins,
+      presenceStatus: ticket.presenceStatus,
       addedAt: ticket.addedAt,
+      completedAt: now,
     });
+
+    // 🎓 AUTOMATICALLY DEDUCT 1 LESSON CREDIT FROM STUDENT ENROLLMENT
+    if (ticket.studentClerkId) {
+      const enrollment = await Enrollment.findOne({
+        studentClerkId: ticket.studentClerkId,
+        status: "active",
+      });
+
+      if (enrollment && enrollment.lessonsRemaining > 0) {
+        enrollment.lessonsRemaining -= 1;
+        enrollment.lessonsSpent += 1;
+        if (enrollment.lessonsRemaining === 0) {
+          enrollment.status = "completed";
+        }
+        await enrollment.save();
+      }
+    }
 
     await QueueTicket.findByIdAndDelete(id);
     await resequenceBranchQueue(ticket.branchId);
@@ -77,10 +240,11 @@ export const completeTurn = async (
     io.to(ticket.branchId).emit("queue_updated", freshQueue);
 
     res.status(200).json({
-      message: "Turn completed and archived cleanly",
+      message: "Turn completed, lesson credit deducted, and archived cleanly.",
       queue: freshQueue,
     });
   } catch (error: any) {
+    console.error("Complete turn validation error breakdown:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -320,6 +484,19 @@ export const verifyStoreArrival = async (
       ticket,
       queue: freshQueue,
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const getStudentActiveTicket = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { clerkId } = req.params;
+    const ticket = await QueueTicket.findOne({ studentClerkId: clerkId });
+    res.status(200).json({ ticket: ticket || null });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

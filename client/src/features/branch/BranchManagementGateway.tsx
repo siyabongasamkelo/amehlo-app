@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "../../context/AppContext";
+// import { useApp } from "../../context/AppContext";
 import { branchService } from "../branch/services/branchService";
 import {
   Building2,
@@ -10,10 +10,15 @@ import {
   Key,
   Loader2,
 } from "lucide-react";
+import { useBranch } from "../branch/context/BranchContext";
+import { useCompany } from "../company/context/CompanyContext";
 
 export const BranchManagementGateway: React.FC = () => {
-  const { activeCompany, branches, loadCompanyBranches, isLoadingBranches } =
-    useApp();
+  // const { activeCompany, branches, loadCompanyBranches, isLoadingBranches } =
+  // useApp();
+  const { branches, loadCompanyBranches, isLoadingBranches } = useBranch();
+  const { activeCompany } = useCompany();
+
   const navigate = useNavigate();
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");

@@ -33,4 +33,10 @@ export const branchService = {
     const response = await axios.get(`${API_URL}/company/${companyId}`);
     return response.data.branches;
   },
+
+  // ➔ Fetch details for one single branch document from the database
+  getBranchById: async (branchId: string): Promise<IBranchData> => {
+    const response = await axios.get(`${API_URL}/${branchId}`);
+    return response.data.branch; // Assuming your backend returns { branch: {...} }
+  },
 };
