@@ -3,6 +3,7 @@ import { User } from "../models/User.js";
 import { QueueTicket } from "../models/QueueTicket.js"; // Optional: if branch lookups are needed later
 import { Branch } from "../models/Branch.js";
 import { Enrollment } from "../models/Enrollment.js"; // Add at top of userController.ts
+import { clerkClient } from "@clerk/express";
 
 // ➔ SYNC OR CREATE CLERK USER PROFILES FOR STAFF/OWNERS (POST /api/users/sync)
 export const syncClerkUser = async (
@@ -250,5 +251,82 @@ export const assignStudentSchool = async (
   } catch (error: any) {
     console.error("Assign student school failure:", error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+// ➔ ADMIN / STAFF CREATES A WALK-IN STUDENT DIRECTLY (POST /api/users/admin-create-student)
+export const adminCreateStudent = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { name, email, phone, companyId, branchId } = req.body;
+
+    if (!name || !email || !companyId) {
+      res.status(400).json({
+        error: "Name, email, and companyId are required to register a student.",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 1. Check if the student already exists in MongoDB
+    const existingMongoUser = await User.findOne({ email: normalizedEmail });
+    if (existingMongoUser) {
+      res.status(200).json({
+        message: "Student already exists in database.",
+        user: existingMongoUser,
+      });
+      return;
+    }
+
+    // 2. Check if the email already exists in Clerk (e.g., created previously but never synced)
+    const existingClerkUsers = await clerkClient.users.getUserList({
+      emailAddress: [normalizedEmail],
+    });
+
+    let clerkUser = existingClerkUsers.data[0];
+
+    // 3. If not in Clerk yet, create the Clerk account with no password required
+    if (!clerkUser) {
+      const nameParts = name.trim().split(" ");
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(" ") || undefined;
+
+      clerkUser = await clerkClient.users.createUser({
+        emailAddress: [normalizedEmail],
+        firstName,
+        lastName,
+        skipPasswordRequirement: true,
+        legalAcceptedAt: new Date(), // <-- Add this line
+      });
+    }
+
+    // 4. Save the new student into MongoDB with the real clerkId
+    const newStudent = new User({
+      clerkId: clerkUser.id,
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone ? phone.trim() : null,
+      role: "student",
+      assignedCompanyId: companyId,
+      assignedBranchId: branchId || null,
+    });
+
+    await newStudent.save();
+
+    res.status(201).json({
+      message: "Walk-in student created successfully.",
+      user: newStudent,
+    });
+  } catch (error: any) {
+    console.error("Admin create student error:", error);
+    // Surface Clerk validation errors cleanly if any occur
+    const clerkErrorMessage =
+      error?.errors?.[0]?.longMessage || error?.errors?.[0]?.message;
+    res.status(500).json({
+      error: clerkErrorMessage || error.message || "Failed to create student.",
+    });
   }
 };

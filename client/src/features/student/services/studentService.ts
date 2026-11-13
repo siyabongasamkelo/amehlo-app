@@ -57,6 +57,14 @@ export interface IDrivingSchoolOption {
   name: string;
 }
 
+export interface IAdminCreateStudentPayload {
+  name: string;
+  email: string;
+  phone?: string;
+  companyId: string;
+  branchId?: string;
+}
+
 export const studentService = {
   // ➔ Locks role = "student" in MongoDB
   syncStudentUser: async (payload: IStudentSyncPayload): Promise<IUserData> => {
@@ -160,6 +168,17 @@ export const studentService = {
     const response = await axios.patch(
       `${BASE_API_URL}/users/${clerkId}/assign-school`,
       { companyId, branchId },
+    );
+    return response.data.user;
+  },
+
+  // Inside studentService object:
+  adminCreateStudent: async (
+    payload: IAdminCreateStudentPayload,
+  ): Promise<IUserData> => {
+    const response = await axios.post(
+      `${BASE_API_URL}/users/admin-create-student`,
+      payload,
     );
     return response.data.user;
   },

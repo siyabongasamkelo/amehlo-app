@@ -18,6 +18,7 @@ export interface IQueueItem {
   presenceStatus?: "Remote" | "Arrived";
   addedAt: string;
 }
+
 export const queueService = {
   // ➔ Fetch active waiting tickets via (GET /api/queue/:branchId)
   getBranchQueue: async (branchId: string): Promise<IQueueItem[]> => {

@@ -6,6 +6,7 @@ import {
   getBranchStaff,
   searchCompanyStudents,
   assignStudentSchool,
+  adminCreateStudent,
 } from "../controllers/userController.js";
 
 const router = Router();
@@ -16,5 +17,6 @@ router.get("/profile/:clerkId", getUserProfile);
 router.get("/branch/:branchId/staff", getBranchStaff);
 router.get("/company/:companyId/students", searchCompanyStudents);
 router.patch("/:clerkId/assign-school", assignStudentSchool);
+router.post("/admin-create-student", adminCreateStudent);
 
 export default router;
