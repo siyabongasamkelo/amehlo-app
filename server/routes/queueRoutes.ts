@@ -9,11 +9,13 @@ import {
   verifyStoreArrival,
   startService,
   getStudentActiveTicket,
+  getStudentLessonHistory,
 } from "../controllers/queueController.js";
 
 const router = Router();
 
-router.get("/student/:clerkId", getStudentActiveTicket); // ➔ Must come BEFORE /:branchId!
+router.get("/student/:clerkId/history", getStudentLessonHistory); // ➔ Must come BEFORE /:branchId!
+router.get("/student/:clerkId", getStudentActiveTicket);
 router.get("/:branchId", getBranchQueue);
 router.get("/:branchId/analytics", getBranchQueueAnalytics);
 router.post("/join", joinQueue);

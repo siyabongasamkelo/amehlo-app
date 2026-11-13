@@ -1,6 +1,7 @@
 import type { IUserData } from "../../user/userService";
 import axios from "axios";
 import type { IQueueItem } from "../../queue/services/queueService";
+import type { ILessonHistoryItem } from "../components/dashboard/LessonHistoryList";
 
 const BASE_API_URL =
   import.meta.env.VITE_APP_ENV === "development"
@@ -40,6 +41,20 @@ export interface IStudentJoinQueuePayload {
   serviceId: string;
   isRemoteJoin: boolean;
   preferredWorkerId?: string | null;
+}
+
+export interface ISearchedStudent {
+  _id: string;
+  clerkId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  enrollment?: IEnrollmentData | null;
+}
+
+export interface IDrivingSchoolOption {
+  _id: string;
+  name: string;
 }
 
 export const studentService = {
@@ -107,5 +122,45 @@ export const studentService = {
   // ➔ Leave queue cleanly
   leaveStudentQueue: async (ticketId: string): Promise<void> => {
     await axios.delete(`${BASE_API_URL}/queue/${ticketId}/ghost`);
+  },
+
+  // Inside studentService object:
+  searchCompanyStudents: async (
+    companyId: string,
+    query: string,
+  ): Promise<ISearchedStudent[]> => {
+    const response = await axios.get(
+      `${BASE_API_URL}/users/company/${companyId}/students`,
+      { params: { q: query } },
+    );
+    return response.data.students;
+  },
+
+  // Inside studentService object:
+  getStudentLessonHistory: async (
+    clerkId: string,
+  ): Promise<ILessonHistoryItem[]> => {
+    const response = await axios.get(
+      `${BASE_API_URL}/queue/student/${clerkId}/history`,
+    );
+    return response.data.history || [];
+  },
+
+  // Inside studentService:
+  getAvailableCompanies: async (): Promise<IDrivingSchoolOption[]> => {
+    const response = await axios.get(`${BASE_API_URL}/companies`);
+    return response.data.companies || [];
+  },
+
+  assignStudentSchool: async (
+    clerkId: string,
+    companyId: string,
+    branchId?: string,
+  ): Promise<IUserData> => {
+    const response = await axios.patch(
+      `${BASE_API_URL}/users/${clerkId}/assign-school`,
+      { companyId, branchId },
+    );
+    return response.data.user;
   },
 };

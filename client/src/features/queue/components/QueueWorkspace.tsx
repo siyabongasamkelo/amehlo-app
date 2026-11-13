@@ -6,6 +6,7 @@ interface QueueWorkspaceProps {
   queue: any[];
   services: any[];
   userClerkId?: string;
+  userRole?: "owner" | "worker" | "student"; // ➔ Declare it here
   isLoadingQueue: boolean;
   onUpdateStatus: (ticketId: string, status: string) => void;
   onPromptAction: (ticket: any) => void;
@@ -18,15 +19,25 @@ export const QueueWorkspace: React.FC<QueueWorkspaceProps> = ({
   isLoadingQueue,
   onUpdateStatus,
   onPromptAction,
+  userRole,
 }) => {
-  const [activeTab, setActiveTab] = useState<"personal" | "shared">("personal");
+  // Inside QueueDashboard.tsx (line 20)
+
+  const [activeTab, setActiveTab] = useState<"all" | "personal" | "shared">(
+    userRole === "owner" ? "all" : "personal",
+  );
 
   const personalTickets = queue.filter(
     (t) => t.preferredWorkerId === userClerkId,
   );
   const sharedTickets = queue.filter((t) => !t.preferredWorkerId);
+
   const displayedTickets =
-    activeTab === "personal" ? personalTickets : sharedTickets;
+    activeTab === "all"
+      ? queue
+      : activeTab === "personal"
+        ? personalTickets
+        : sharedTickets;
 
   return (
     <div className="space-y-4">

@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, UserCheck, Loader2, QrCode } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  ArrowLeft,
+  UserCheck,
+  Loader2,
+  QrCode,
+  CheckCircle2,
+  AlertCircle,
+  LogIn,
+  Wallet,
+} from "lucide-react";
 import { useApp } from "../../../context/AppContext";
 import { useStudent } from "../context/StudentContext";
 import { studentService } from "../services/studentService";
@@ -19,9 +28,9 @@ export const StudentQrCheckIn: React.FC = () => {
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirmingArrival, setIsConfirmingArrival] = useState(false);
+  const [justConfirmedArrival, setJustConfirmedArrival] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-confirm physical arrival if student already joined remotely for this branch!
   useEffect(() => {
     if (
       branchId &&
@@ -34,15 +43,16 @@ export const StudentQrCheckIn: React.FC = () => {
         .confirmStudentArrival(activeTicket._id)
         .then((updated) => {
           setActiveTicket(updated);
-          navigate("/student/portal", { replace: true });
+          setJustConfirmedArrival(true);
         })
-        .catch(() => setIsConfirmingArrival(false));
+        .catch((err) => {
+          setError(
+            err.response?.data?.error || "Failed to confirm yard arrival.",
+          );
+        })
+        .finally(() => setIsConfirmingArrival(false));
     }
   }, [branchId, activeTicket?._id]);
-
-  if (!dbUser || dbUser.role !== "student") {
-    return <Navigate to="/student/auth" replace />;
-  }
 
   if (isLoadingEnrollment || isConfirmingArrival) {
     return (
@@ -59,10 +69,10 @@ export const StudentQrCheckIn: React.FC = () => {
 
   if (!branchId) {
     return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4">
-        <div className="bg-white border border-zinc-200 rounded-2xl p-6 text-center max-w-sm w-full space-y-2">
+      <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white border border-zinc-200 rounded-3xl p-6 text-center max-w-sm w-full space-y-3 shadow-sm">
           <QrCode className="h-8 w-8 text-red-500 mx-auto" />
-          <h2 className="text-sm font-bold text-zinc-900 uppercase">
+          <h2 className="text-sm font-black text-zinc-900 uppercase">
             Invalid Yard QR Code
           </h2>
           <p className="text-xs text-zinc-500">
@@ -73,10 +83,138 @@ export const StudentQrCheckIn: React.FC = () => {
     );
   }
 
-  if (!enrollment?.isPaid || enrollment.lessonsRemaining <= 0 || activeTicket) {
-    return <Navigate to="/student/portal" replace />;
+  if (!dbUser || dbUser.role !== "student") {
+    const redirectPath = `/student/qr-checkin?branchId=${branchId}`;
+    return (
+      <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white border border-zinc-200 rounded-3xl p-6 text-center max-w-sm w-full space-y-4 shadow-sm">
+          <div className="h-11 w-11 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mx-auto">
+            <LogIn className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-base font-black text-zinc-900">
+              Sign In to Check In
+            </h2>
+            <p className="text-xs text-zinc-500">
+              Log in to your student account to confirm your arrival at the
+              yard.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                `/student/auth?redirect=${encodeURIComponent(redirectPath)}`,
+              )
+            }
+            className="w-full h-11 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs cursor-pointer"
+          >
+            Continue to Student Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (activeTicket) {
+    const isSameBranch = activeTicket.branchId === branchId;
+
+    return (
+      <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4 font-sans antialiased">
+        <div className="max-w-md w-full bg-white border border-zinc-200 rounded-3xl p-6 shadow-xl space-y-5 text-center">
+          <div
+            className={`h-12 w-12 rounded-2xl flex items-center justify-center mx-auto ${
+              isSameBranch
+                ? "bg-emerald-50 text-emerald-600"
+                : "bg-amber-50 text-amber-600"
+            }`}
+          >
+            {isSameBranch ? (
+              <CheckCircle2 className="h-6 w-6" />
+            ) : (
+              <AlertCircle className="h-6 w-6" />
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <span
+              className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                isSameBranch
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-amber-50 text-amber-700"
+              }`}
+            >
+              {isSameBranch
+                ? justConfirmedArrival
+                  ? "Arrival Confirmed"
+                  : "Already Checked In"
+                : "Active Ticket Elsewhere"}
+            </span>
+
+            <h1 className="text-lg font-black text-zinc-900 pt-1">
+              {isSameBranch
+                ? `You're in the Yard Queue (#${activeTicket.ticketId})`
+                : `You Already Have Ticket #${activeTicket.ticketId}`}
+            </h1>
+
+            <p className="text-xs text-zinc-500">
+              {isSameBranch
+                ? `Your status is ${activeTicket.presenceStatus} (Position #${activeTicket.position}). Hang tight until your instructor calls you.`
+                : "You already have an active lesson ticket in line at another branch."}
+            </p>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-100 text-red-700 text-xs font-semibold rounded-xl p-3">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => navigate("/student/portal")}
+            className="w-full h-11 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs cursor-pointer"
+          >
+            View Live Ticket on Dashboard
+          </button>
+        </div>
+      </div>
+    );
   }
 
+  if (!enrollment || !enrollment.isPaid || enrollment.lessonsRemaining <= 0) {
+    return (
+      <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4 font-sans antialiased">
+        <div className="max-w-md w-full bg-white border border-zinc-200 rounded-3xl p-6 shadow-xl space-y-5 text-center">
+          <div className="h-12 w-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto">
+            <Wallet className="h-6 w-6" />
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-lg font-black text-zinc-900">
+              {!enrollment
+                ? "Complete Course Setup First"
+                : !enrollment.isPaid
+                  ? "Course Payment Required"
+                  : "No Lessons Remaining"}
+            </h1>
+            <p className="text-xs text-zinc-500">
+              {!enrollment
+                ? "Please finish selecting your licence code and lesson bundle before checking in."
+                : !enrollment.isPaid
+                  ? "Your lesson bundle is currently unpaid. Complete payment on your dashboard to join the queue."
+                  : "You have used all lessons in your current bundle. Top up on your dashboard to book another session."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/student/portal")}
+            className="w-full h-11 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs cursor-pointer"
+          >
+            Go to Student Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
   const handleYardJoin = async () => {
     if (!selectedServiceId) return;
     setIsSubmitting(true);
@@ -86,11 +224,10 @@ export const StudentQrCheckIn: React.FC = () => {
         studentClerkId: dbUser.clerkId,
         branchId,
         serviceId: selectedServiceId,
-        isRemoteJoin: false, // Scanned physical QR = Arrived at Yard!
+        isRemoteJoin: false,
         preferredWorkerId: selectedWorkerId,
       });
       setActiveTicket(ticket);
-      navigate("/student/portal");
     } catch (err: any) {
       setError(err.response?.data?.error || "Could not check in at branch.");
     } finally {

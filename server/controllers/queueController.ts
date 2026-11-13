@@ -4,6 +4,8 @@ import { User } from "../models/User.js";
 import { Enrollment } from "../models/Enrollment.js";
 import { resequenceBranchQueue } from "../utils/queueEngine.js";
 import { io } from "../index.js";
+import { Branch } from "../models/Branch.js";
+import { Service } from "../models/Service.js";
 
 // ➔ JOIN QUEUE (POST /api/queue/join)
 // 1. UPDATE JOIN QUEUE (Modify your existing joinQueue function)
@@ -461,6 +463,7 @@ export const verifyStoreArrival = async (
     const ticket = await QueueTicket.findById(id);
 
     if (!ticket) {
+      console.log("Ticket booking reference matching this identity not found.");
       res.status(404).json({
         error: "Ticket booking reference matching this identity not found.",
       });
@@ -485,6 +488,7 @@ export const verifyStoreArrival = async (
       queue: freshQueue,
     });
   } catch (error: any) {
+    console.log(error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -498,6 +502,67 @@ export const getStudentActiveTicket = async (
     const ticket = await QueueTicket.findOne({ studentClerkId: clerkId });
     res.status(200).json({ ticket: ticket || null });
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ➔ FETCH COMPLETED LESSON HISTORY FOR A STUDENT (GET /api/queue/student/:clerkId/history)
+export const getStudentLessonHistory = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { clerkId } = req.params;
+
+    const logs = await CompletionLog.find({ studentClerkId: clerkId })
+      .sort({ completedAt: -1 })
+      .lean();
+
+    if (logs.length === 0) {
+      res.status(200).json({ history: [] });
+      return;
+    }
+
+    // Collect unique IDs for batch lookups
+    const workerClerkIds = [
+      ...new Set(logs.map((l) => l.servedById).filter(Boolean)),
+    ];
+    const branchIds = [...new Set(logs.map((l) => l.branchId).filter(Boolean))];
+    const serviceIds = [
+      ...new Set(logs.map((l) => l.serviceId).filter(Boolean)),
+    ];
+
+    const [workers, branches, services] = await Promise.all([
+      User.find({ clerkId: { $in: workerClerkIds } })
+        .select("clerkId name")
+        .lean(),
+      Branch.find({ _id: { $in: branchIds } })
+        .select("name")
+        .lean(),
+      Service.find({ _id: { $in: serviceIds } })
+        .select("name")
+        .lean(),
+    ]);
+
+    const workerMap = new Map(workers.map((w) => [w.clerkId, w.name]));
+    const branchMap = new Map(branches.map((b) => [b._id.toString(), b.name]));
+    const serviceMap = new Map(services.map((s) => [s._id.toString(), s.name]));
+
+    const history = logs.map((log) => ({
+      id: log._id.toString(),
+      date: new Date(log.completedAt).toLocaleDateString("en-ZA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+      instructorName: workerMap.get(log.servedById) || "Station Instructor",
+      branchName: branchMap.get(log.branchId) || "Driving Yard",
+      topic: serviceMap.get(log.serviceId) || "Driving Lesson",
+    }));
+
+    res.status(200).json({ history });
+  } catch (error: any) {
+    console.error("Fetch student lesson history failure:", error);
     res.status(500).json({ error: error.message });
   }
 };

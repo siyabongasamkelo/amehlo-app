@@ -11,8 +11,6 @@ export const CreateCompanyGateway: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  console.log("database", dbUser);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyName.trim() || !dbUser?._id) return;

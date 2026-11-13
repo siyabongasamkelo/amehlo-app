@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { User } from "../models/User.js";
 import { QueueTicket } from "../models/QueueTicket.js"; // Optional: if branch lookups are needed later
 import { Branch } from "../models/Branch.js";
+import { Enrollment } from "../models/Enrollment.js"; // Add at top of userController.ts
 
 // ➔ SYNC OR CREATE CLERK USER PROFILES FOR STAFF/OWNERS (POST /api/users/sync)
 export const syncClerkUser = async (
@@ -161,6 +162,93 @@ export const getBranchStaff = async (
       "❌ [BACKEND ERROR] Failed fetching location staff telemetry:",
       error.message,
     );
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ➔ SEARCH REGISTERED STUDENTS BY COMPANY (GET /api/users/company/:companyId/students?q=...)
+export const searchCompanyStudents = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { companyId } = req.params;
+    const { q } = req.query;
+
+    if (!companyId) {
+      res.status(400).json({ error: "Missing companyId parameter." });
+      return;
+    }
+
+    const filter: any = {
+      assignedCompanyId: companyId,
+      role: "student",
+    };
+
+    if (typeof q === "string" && q.trim() !== "") {
+      const regex = new RegExp(q.trim(), "i");
+      filter.$or = [{ name: regex }, { phone: regex }, { email: regex }];
+    }
+
+    const students = await User.find(filter)
+      .select("clerkId name email phone assignedCompanyId")
+      .limit(10)
+      .lean();
+
+    // Attach active enrollment status so desk staff see payment/lesson eligibility
+    const clerkIds = students.map((s) => s.clerkId);
+    const activeEnrollments = await Enrollment.find({
+      studentClerkId: { $in: clerkIds },
+      status: "active",
+    }).lean();
+
+    const enrollmentMap = new Map(
+      activeEnrollments.map((e) => [e.studentClerkId, e]),
+    );
+
+    const enrichedStudents = students.map((student) => ({
+      ...student,
+      enrollment: enrollmentMap.get(student.clerkId) || null,
+    }));
+
+    res.status(200).json({ students: enrichedStudents });
+  } catch (error: any) {
+    console.error("Search company students failure:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Add to userController.ts
+export const assignStudentSchool = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { clerkId } = req.params;
+    const { companyId, branchId } = req.body;
+
+    if (!companyId) {
+      res.status(400).json({ error: "Please select a driving school." });
+      return;
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { clerkId, role: "student" },
+      {
+        assignedCompanyId: companyId,
+        ...(branchId ? { assignedBranchId: branchId } : {}),
+      },
+      { new: true },
+    );
+
+    if (!updatedUser) {
+      res.status(404).json({ error: "Student profile not found." });
+      return;
+    }
+
+    res.status(200).json({ user: updatedUser });
+  } catch (error: any) {
+    console.error("Assign student school failure:", error);
     res.status(500).json({ error: error.message });
   }
 };

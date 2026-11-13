@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { StepSchool } from "../components/onboarding/StepSchool";
 import { StepGoal } from "../components/onboarding/StepGoal";
 import type { GoalType } from "../components/onboarding/StepGoal";
 import { StepCode } from "../components/onboarding/StepCode";
 import { StepPackage } from "../components/onboarding/StepPackage";
 import { useStudent } from "../context/StudentContext";
-import { Navigate } from "react-router-dom";
 
 export const StudentOnboardingWizard: React.FC = () => {
   const navigate = useNavigate();
@@ -14,16 +14,24 @@ export const StudentOnboardingWizard: React.FC = () => {
     useStudent();
 
   const [step, setStep] = useState<number>(1);
+  const [companyId, setCompanyId] = useState<string>("");
+  const [branchId, setBranchId] = useState<string>("");
   const [goal, setGoal] = useState<GoalType>(null);
   const [code, setCode] = useState<string>("");
   const [lessonsCount, setLessonsCount] = useState<number>(10);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const handleFinish = async () => {
-    if (!goal || !code) return;
+    if (!companyId || !goal || !code) return;
     setIsSaving(true);
     try {
-      await saveOnboardingEnrollment(goal, code, lessonsCount);
+      await saveOnboardingEnrollment(
+        companyId,
+        goal,
+        code,
+        lessonsCount,
+        branchId || undefined,
+      );
       navigate("/student/portal");
     } catch (err) {
       console.error("Failed saving onboarding enrollment:", err);
@@ -50,7 +58,7 @@ export const StudentOnboardingWizard: React.FC = () => {
       <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl p-6 md:p-8 shadow-xl space-y-6">
         <div className="space-y-2">
           <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-            <span>Step {step} of 3</span>
+            <span>Step {step} of 4</span>
             {step > 1 && (
               <button
                 type="button"
@@ -64,34 +72,46 @@ export const StudentOnboardingWizard: React.FC = () => {
           <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-orange-600 transition-all duration-300 rounded-full"
-              style={{ width: `${(step / 3) * 100}%` }}
+              style={{ width: `${(step / 4) * 100}%` }}
             />
           </div>
         </div>
 
         {step === 1 && (
-          <StepGoal
-            selectedGoal={goal}
-            onSelect={(picked) => {
-              setGoal(picked);
-              setCode("");
+          <StepSchool
+            selectedCompanyId={companyId}
+            selectedBranchId={branchId}
+            onSelect={(pickedCompany, pickedBranch) => {
+              setCompanyId(pickedCompany);
+              setBranchId(pickedBranch);
               setStep(2);
             }}
           />
         )}
 
         {step === 2 && (
-          <StepCode
-            goal={goal}
-            selectedCode={code}
+          <StepGoal
+            selectedGoal={goal}
             onSelect={(picked) => {
-              setCode(picked);
+              setGoal(picked);
+              setCode("");
               setStep(3);
             }}
           />
         )}
 
         {step === 3 && (
+          <StepCode
+            goal={goal}
+            selectedCode={code}
+            onSelect={(picked) => {
+              setCode(picked);
+              setStep(4);
+            }}
+          />
+        )}
+
+        {step === 4 && (
           <StepPackage
             selectedCode={code}
             lessonsCount={lessonsCount}

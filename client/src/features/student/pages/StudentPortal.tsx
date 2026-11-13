@@ -14,9 +14,11 @@ export const StudentPortal: React.FC = () => {
     enrollment,
     isLoadingEnrollment,
     activeTicket,
+    lessonHistory,
     simulatePayment,
     leaveActiveQueue,
   } = useStudent();
+
   const { signOut } = useClerk();
   const navigate = useNavigate();
 
@@ -117,7 +119,7 @@ export const StudentPortal: React.FC = () => {
           )}
 
         {/* COMPLETED LESSON HISTORY */}
-        <LessonHistoryList lessons={[]} />
+        <LessonHistoryList lessons={lessonHistory} />
       </div>
     </div>
   );

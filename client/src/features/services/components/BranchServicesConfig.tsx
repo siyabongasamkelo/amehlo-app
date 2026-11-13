@@ -51,6 +51,7 @@ export const BranchServicesConfig: React.FC = () => {
       );
       return;
     }
+    console.log("activeBranchId", activeBranchId);
     if (!activeCompany?._id) return;
 
     setIsSaving(true);

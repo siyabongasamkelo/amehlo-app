@@ -134,7 +134,7 @@ export const QueueDashboard: React.FC = () => {
         onSignOut={handleTerminalSignOut}
       />
 
-      <StudentSearchHUD onInsertToQueue={handleManualInsert} />
+      <StudentSearchHUD />
 
       <QueueMetricsBar
         queueLength={queue.length}
@@ -146,6 +146,7 @@ export const QueueDashboard: React.FC = () => {
         queue={queue}
         services={services}
         userClerkId={user?.clerkId}
+        userRole={user?.role} // ➔ Add this prop!
         isLoadingQueue={isLoadingQueue}
         onUpdateStatus={updateQueueStatusReal}
         onPromptAction={(ticket) => setPromptTicket(ticket)}

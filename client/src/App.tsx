@@ -4,8 +4,6 @@ import { RegisterGateway } from "./features/auth/RegisterGateway";
 import { CreateCompanyGateway } from "./features/company/CreateCompanyGateway";
 import { QueueDashboard } from "./features/queue/QueueDashboard";
 import { BranchManagementGateway } from "./features/branch/BranchManagementGateway";
-// import { CustomerJoinGateway } from "./features/customer/CustomerJoinGateway";
-// import { RemoteLookupGateway } from "./features/remoteLookupGateway/RemoteLookupGateway";
 import { BranchServicesConfig } from "./features/services/components/BranchServicesConfig";
 import { TermsView } from "./features/terms/TermsView";
 import { PrivacyPolicyView } from "./features/terms/PrivacyPolicyView";
@@ -20,13 +18,15 @@ import { StudentQrCheckIn } from "./features/student/pages/StudentQrCheckIn";
 
 export default function App() {
   const { dbUser, isLoadingProfile } = useApp();
-  const { activeCompany } = useCompany();
+  const { activeCompany, isLoadingCompany } = useCompany();
   const { enrollment, isLoadingEnrollment } = useStudent();
 
-  console.log("Current Database Sync User:", dbUser);
-
-  // Wait for student enrollment check before routing students
-  if (isLoadingProfile || (dbUser?.role === "student" && isLoadingEnrollment)) {
+  // Wait for profile + role-specific data before evaluating any route redirects
+  if (
+    isLoadingProfile ||
+    (dbUser?.role === "student" && isLoadingEnrollment) ||
+    (dbUser?.role === "owner" && isLoadingCompany)
+  ) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-white font-sans">
         <div className="space-y-3 text-center">
@@ -38,12 +38,17 @@ export default function App() {
       </div>
     );
   }
-  // Helper inside App.tsx:
 
+  // Single source of truth for each role's home destination
   const getHomeRoute = () => {
     if (!dbUser) return "/register";
+
+    const params = new URLSearchParams(window.location.search);
+    const redirectTarget = params.get("redirect");
+
     if (dbUser.role === "student") {
-      return enrollment ? "/student/portal" : "/student/onboarding";
+      if (!enrollment) return "/student/onboarding";
+      return redirectTarget || "/student/portal";
     }
     if (dbUser.role === "owner") {
       return activeCompany ? "/branches" : "/create-company";
@@ -51,17 +56,21 @@ export default function App() {
     return "/dashboard";
   };
 
-  {
-    /* PROTECTED STUDENT PORTAL */
-  }
+  const isStaff = dbUser?.role === "owner" || dbUser?.role === "worker";
+  const isOwner = dbUser?.role === "owner";
+  const isStudent = dbUser?.role === "student";
 
   return (
     <BrowserRouter>
       <Routes>
+        {/* PUBLIC & QR STUDENT ENTRY ROUTES */}
         <Route path="/student/join-online" element={<StudentRemoteJoin />} />
         <Route path="/student/qr-checkin" element={<StudentQrCheckIn />} />
-        {/* Keep existing wall QR codes working seamlessly */}
         <Route path="/customer/join" element={<StudentQrCheckIn />} />
+        <Route path="/terms" element={<TermsView />} />
+        <Route path="/privacy" element={<PrivacyPolicyView />} />
+
+        {/* STUDENT AUTH & PORTAL ROUTES */}
         <Route
           path="/student/auth"
           element={
@@ -75,121 +84,117 @@ export default function App() {
         <Route
           path="/student/portal"
           element={
-            dbUser && dbUser.role === "student" ? (
-              <StudentPortal />
+            isStudent ? (
+              enrollment ? (
+                <StudentPortal />
+              ) : (
+                <Navigate to="/student/onboarding" replace />
+              )
+            ) : dbUser ? (
+              <Navigate to={getHomeRoute()} replace />
             ) : (
               <Navigate to="/student/auth" replace />
             )
           }
         />
-        {/* 🚗 STUDENT 3-STEP ONBOARDING WIZARD */}
         <Route
           path="/student/onboarding"
           element={
-            dbUser && dbUser.role === "student" ? (
-              <StudentOnboardingWizard />
+            isStudent ? (
+              enrollment ? (
+                <Navigate to="/student/portal" replace />
+              ) : (
+                <StudentOnboardingWizard />
+              )
+            ) : dbUser ? (
+              <Navigate to={getHomeRoute()} replace />
             ) : (
               <Navigate to="/student/auth" replace />
             )
           }
         />
-        <Route path="/terms" element={<TermsView />} />
-        <Route path="/privacy" element={<PrivacyPolicyView />} />
-        {/* 📱 PUBLIC CUSTOMER-FACING SCANNING PORTAL */}
-        {/* <Route path="/customer/join" element={<CustomerJoinGateway />} /> */}
-        {/* 📱 PUBLIC REMOTE SEARCH ENGINE PORTAL */}
-        {/* <Route path="/search" element={<RemoteLookupGateway />} /> */}
+
+        {/* STAFF & OWNER AUTH ROUTES */}
         <Route
           path="/login"
           element={
-            dbUser ? (
-              dbUser.role === "owner" ? (
-                activeCompany ? (
-                  <Navigate to="/branches" replace />
-                ) : (
-                  <Navigate to="/create-company" replace />
-                )
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
-            ) : (
-              <LoginGateway />
-            )
+            dbUser ? <Navigate to={getHomeRoute()} replace /> : <LoginGateway />
           }
         />
-        {/* Entry Interceptor: Route admin paths based on verification roles */}
         <Route
           path="/register"
           element={
             dbUser ? (
-              dbUser.role === "owner" ? (
-                activeCompany ? (
-                  <Navigate to="/branches" replace />
-                ) : (
-                  <Navigate to="/create-company" replace />
-                )
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
+              <Navigate to={getHomeRoute()} replace />
             ) : (
               <RegisterGateway />
             )
           }
         />
-        {/* 🏢 CORPORATE WORKSPACE GATEWAY */}
+
+        {/* OWNER-ONLY WORKSPACE & BRANCH ROUTES */}
         <Route
           path="/create-company"
           element={
-            dbUser && dbUser.role === "owner" ? (
+            isOwner ? (
               activeCompany ? (
                 <Navigate to="/branches" replace />
               ) : (
                 <CreateCompanyGateway />
               )
             ) : (
-              <Navigate to="/register" replace />
+              <Navigate to={getHomeRoute()} replace />
             )
           }
         />
-        {/* BRANCH PROVISIONING NODES */}
         <Route
           path="/branches"
           element={
-            dbUser && dbUser.role === "owner" ? (
+            isOwner ? (
               activeCompany ? (
                 <BranchManagementGateway />
               ) : (
                 <Navigate to="/create-company" replace />
               )
             ) : (
-              <Navigate to="/register" replace />
+              <Navigate to={getHomeRoute()} replace />
             )
           }
         />
-        {/* 🔒 OWNERS-ONLY BRANCH SERVICES CONFIGURATION ROUTE */}
         <Route
           path="/branch/:branchId/services"
           element={
-            dbUser && dbUser.role === "owner" ? (
+            isOwner ? (
               activeCompany ? (
                 <BranchServicesConfig />
               ) : (
                 <Navigate to="/create-company" replace />
               )
             ) : (
-              <Navigate to="/register" replace />
+              <Navigate to={getHomeRoute()} replace />
             )
           }
         />
-        {/* PLATFORM OPERATIONS COCKPIT TERMINAL */}
+
+        {/* STAFF-ONLY LIVE OPERATIONS COCKPIT (OWNER + WORKER ONLY) */}
         <Route
           path="/dashboard"
           element={
-            dbUser ? <QueueDashboard /> : <Navigate to="/register" replace />
+            isStaff ? (
+              <QueueDashboard />
+            ) : (
+              <Navigate to={getHomeRoute()} replace />
+            )
           }
         />
-        {/* Fallback Catch-All Redirect Engine */}
-        <Route path="*" element={<Navigate to="/register" replace />} />
+
+        {/* FALLBACK CATCH-ALL REDIRECT */}
+        <Route
+          path="*"
+          element={
+            <Navigate to={dbUser ? getHomeRoute() : "/register"} replace />
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

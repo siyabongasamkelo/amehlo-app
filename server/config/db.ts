@@ -6,7 +6,6 @@ export const connectDB = async (): Promise<void> => {
     const connUri =
       process.env.MONGO_URI || "mongodb://127.0.0.1:27017/amehlo_prototype";
 
-    console.log("Mongo URI", connUri);
     const conn = await mongoose.connect(connUri);
     console.log(`🍃 MongoDB Cluster Connected: ${conn.connection.host}`);
   } catch (error: any) {

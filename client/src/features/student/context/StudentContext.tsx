@@ -16,6 +16,7 @@ interface StudentContextType {
   enrollment: IEnrollmentData | null;
   isLoadingEnrollment: boolean;
   activeTicket: IQueueItem | null;
+  lessonHistory: any[];
   setActiveTicket: React.Dispatch<React.SetStateAction<IQueueItem | null>>;
   syncStudentAccount: (phone?: string) => Promise<void>;
   saveOnboardingEnrollment: (
@@ -41,21 +42,26 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoadingEnrollment, setIsLoadingEnrollment] =
     useState<boolean>(false);
   const [activeTicket, setActiveTicket] = useState<IQueueItem | null>(null);
+  const [lessonHistory, setLessonHistory] = useState<ILessonHistoryItem[]>([]);
 
+  // 3. Update refreshEnrollment:
   const refreshEnrollment = async () => {
     if (!dbUser || dbUser.role !== "student") {
       setEnrollment(null);
+      setLessonHistory([]);
       return;
     }
 
     setIsLoadingEnrollment(true);
     try {
-      const [enrollmentData, ticketData] = await Promise.all([
+      const [enrollmentData, ticketData, historyData] = await Promise.all([
         studentService.getStudentEnrollment(dbUser.clerkId),
         studentService.getStudentActiveTicket(dbUser.clerkId),
+        studentService.getStudentLessonHistory(dbUser.clerkId),
       ]);
       setEnrollment(enrollmentData);
       setActiveTicket(ticketData);
+      setLessonHistory(historyData);
     } catch (err) {
       console.error("Failed loading student course & ticket state:", err);
     } finally {
@@ -138,19 +144,28 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Implementation inside StudentProvider:
   const saveOnboardingEnrollment = async (
+    companyId: string,
     goal: "learners" | "drivers",
     code: string,
     lessonsCount: number,
+    branchId?: string,
   ) => {
     if (!dbUser?.clerkId) return;
-    const saved = await studentService.createEnrollment({
-      studentClerkId: dbUser.clerkId,
-      goal,
-      code,
-      lessonsCount,
-    });
-    setEnrollment(saved);
+
+    const [updatedUser, savedEnrollment] = await Promise.all([
+      studentService.assignStudentSchool(dbUser.clerkId, companyId, branchId),
+      studentService.createEnrollment({
+        studentClerkId: dbUser.clerkId,
+        goal,
+        code,
+        lessonsCount,
+      }),
+    ]);
+
+    setDbUser(updatedUser);
+    setEnrollment(savedEnrollment);
   };
 
   const simulatePayment = async () => {
@@ -178,6 +193,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({
         refreshEnrollment,
         simulatePayment,
         leaveActiveQueue,
+        lessonHistory,
       }}
     >
       {children}

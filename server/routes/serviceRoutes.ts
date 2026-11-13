@@ -8,6 +8,7 @@ const router = Router();
 router.post("/setup", async (req: Request, res: Response): Promise<void> => {
   try {
     const { businessId, services } = req.body; // Expects services: ["Haircut", "Nails"]
+
     if (!businessId || !Array.isArray(services) || services.length === 0) {
       res
         .status(400)
@@ -59,13 +60,11 @@ router.get(
   },
 );
 
+// ➔ FETCH ALL SERVICES FOR A BRANCH (MUST BE ABOVE /:businessId!)
 router.get(
   "/branch/:branchId",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      console.log(
-        "➔ [HTTP API SUCCESS] Hit targeted services branch fetch line!",
-      );
       const { branchId } = req.params;
 
       const branch = await Branch.findById(branchId);
@@ -76,36 +75,33 @@ router.get(
         return;
       }
 
-      // 🎯 THE PERFECT DATA SYNC MATCH: Read companyId directly as shown in Atlas!
-      const rawCompanyId = (branch as any).companyId;
+      // Match services stored under either branchId (as seen in Atlas) or companyId
+      const targetCompanyId = branch.companyId?.toString();
+      const lookupIds = targetCompanyId
+        ? [branchId, targetCompanyId]
+        : [branchId];
 
-      if (!rawCompanyId) {
-        console.log(
-          `⚠️ Database Alert: Branch ${branchId} exists but has no attached companyId link!`,
-        );
-        res.status(200).json({
-          services: [],
-          message: "Branch has no parent company profile linked yet.",
-        });
-        return;
-      }
-
-      const targetBusinessId = rawCompanyId.toString();
-      console.log(
-        `➔ Found valid parent company link token footprint: ${targetBusinessId}`,
-      );
-
-      // Query your Service collections using the company hex ID string footprint
       const availableServices = await Service.find({
-        businessId: targetBusinessId,
+        businessId: { $in: lookupIds },
       });
 
-      console.log(
-        `➔ Successfully sending ${availableServices.length} custom services back to client.`,
-      );
       res.status(200).json({ services: availableServices });
     } catch (error: any) {
       console.error("❌ BACKEND CRASH ERROR:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+// ➔ FETCH ALL SERVICES FOR A BUSINESS (GET /api/services/:businessId)
+router.get(
+  "/:businessId",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { businessId } = req.params;
+      const availableServices = await Service.find({ businessId });
+      res.status(200).json({ services: availableServices });
+    } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   },

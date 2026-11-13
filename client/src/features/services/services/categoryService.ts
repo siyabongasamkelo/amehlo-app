@@ -23,7 +23,6 @@ export const categoryService = {
   // ➔ Updated to query via branchId so both owners and workers clear the matching loop seamlessly
   getBusinessServices: async (branchId: string): Promise<IServiceData[]> => {
     const response = await axios.get(`${API_URL}/branch/${branchId}`);
-
     return response.data.services;
   },
 };
