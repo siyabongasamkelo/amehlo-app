@@ -5,7 +5,7 @@ export interface IQueueTicket extends Document {
   ticketId: string;
   branchId: string;
   serviceId: string;
-  studentClerkId?: string; // ➔ Links ticket directly to the logged-in student
+  studentClerkId?: string | null;
   name: string;
   phone: string;
   email?: string;
@@ -22,7 +22,7 @@ export interface ICompletionLog extends Document {
   ticketId: string;
   branchId: string;
   serviceId: string;
-  studentClerkId?: string; // ➔ Tracks completed lessons per student
+  studentClerkId?: string | null;
   servedById: string;
   waitDurationMins: number;
   handlingDurationMins: number;

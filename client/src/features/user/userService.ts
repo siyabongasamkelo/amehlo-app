@@ -16,6 +16,7 @@ export interface IUserData {
   phone: string;
   inviteCode?: string;
   assignedCompanyId: string;
+  assignedBranchId: string;
 }
 
 export const userService = {

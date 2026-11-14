@@ -20,10 +20,13 @@ interface StudentContextType {
   setActiveTicket: React.Dispatch<React.SetStateAction<IQueueItem | null>>;
   syncStudentAccount: (phone?: string) => Promise<void>;
   saveOnboardingEnrollment: (
+    companyId: string,
     goal: "learners" | "drivers",
     code: string,
     lessonsCount: number,
+    branchId?: string,
   ) => Promise<void>;
+
   refreshEnrollment: () => Promise<void>;
   simulatePayment: () => Promise<void>;
   leaveActiveQueue: () => Promise<void>;
@@ -42,7 +45,7 @@ export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoadingEnrollment, setIsLoadingEnrollment] =
     useState<boolean>(false);
   const [activeTicket, setActiveTicket] = useState<IQueueItem | null>(null);
-  const [lessonHistory, setLessonHistory] = useState<ILessonHistoryItem[]>([]);
+  const [lessonHistory, setLessonHistory] = useState<any[]>([]);
 
   // 3. Update refreshEnrollment:
   const refreshEnrollment = async () => {

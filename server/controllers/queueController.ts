@@ -207,7 +207,7 @@ export const completeTurn = async (
       ticketId: ticket.ticketId,
       branchId: ticket.branchId,
       serviceId: ticket.serviceId,
-      studentClerkId: ticket.studentClerkId || null,
+      studentClerkId: ticket.studentClerkId,
       servedById,
       waitDurationMins,
       handlingDurationMins,
