@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { queueService } from "../services/queueService";
+import type { IWeeklyReportResponse } from "../services/queueService";
 import {
   ArrowLeft,
   Clock,
@@ -9,6 +10,10 @@ import {
   BarChart3,
   Calendar,
   RefreshCw,
+  Users,
+  CheckCircle2,
+  XCircle,
+  Car,
 } from "lucide-react";
 import {
   BarChart,
@@ -24,6 +29,7 @@ import {
 } from "recharts";
 
 interface AnalyticsPanelProps {
+  companyId?: string;
   logs: any[];
   averageWaitTime: string;
   bestWaitTime: string;
@@ -33,7 +39,24 @@ interface AnalyticsPanelProps {
   onClose: () => void;
 }
 
+const getDefaultMondayRange = () => {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday);
+
+  const nextMonday = new Date(monday);
+  nextMonday.setDate(monday.getDate() + 7);
+
+  return {
+    start: monday.toISOString().slice(0, 10),
+    end: nextMonday.toISOString().slice(0, 10),
+  };
+};
 export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
+  companyId,
   logs,
   averageWaitTime,
   bestWaitTime,
@@ -41,30 +64,35 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
   totalCompletedCount,
   onClose,
 }) => {
-  // 📅 1. DATE PICKER STATE VALUES (Defaulting to trailing 7 days)
-  const [endDate, setEndDate] = useState<string>(
-    new Date().toISOString().split("T")[0],
-  );
-  const [startDate, setStartDate] = useState<string>(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d.toISOString().split("T")[0];
-  });
+  const defaultRange = getDefaultMondayRange();
+  const [startDate, setStartDate] = useState<string>(defaultRange.start);
+  const [endDate, setEndDate] = useState<string>(defaultRange.end);
 
   const [comparisonData, setComparisonData] = useState<any[]>([]);
+  const [weeklyReport, setWeeklyReport] =
+    useState<IWeeklyReportResponse | null>(null);
   const [isGraphLoading, setIsGraphLoading] = useState<boolean>(false);
 
-  // 🔄 2. DISPATCH NETWORK REQUESTS FOR CROSS-BRANCH RECORDS
   const fetchMetrics = async () => {
     setIsGraphLoading(true);
     try {
-      const data = await queueService.getCrossBranchAnalytics(
-        startDate,
-        endDate,
-      );
-      setComparisonData(data);
+      const [crossBranch, reportData] = await Promise.all([
+        queueService
+          .getCrossBranchAnalytics(startDate, endDate)
+          .catch(() => []),
+        companyId
+          ? queueService.getCompanyWeeklyReport(
+              companyId,
+              new Date(`${startDate}T00:00:00`).toISOString(),
+              new Date(`${endDate}T00:00:00`).toISOString(),
+            )
+          : Promise.resolve(null),
+      ]);
+
+      setComparisonData(crossBranch);
+      setWeeklyReport(reportData);
     } catch (err) {
-      console.error("Failed loading cross branch aggregation matrices:", err);
+      console.error("Failed loading analytics telemetry:", err);
     } finally {
       setIsGraphLoading(false);
     }
@@ -72,24 +100,31 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
 
   useEffect(() => {
     fetchMetrics();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, companyId]);
 
-  // 🕒 3. COMPUTE LOCAL DENSITIES FOR LIVE HOURLY LOADS
   const processHourlyTimelineData = () => {
-    const hours = Array.from({ length: 12 }, (_, i) => i + 8); // Business hours tracking: 08:00 to 19:00
+    const hours = Array.from({ length: 12 }, (_, i) => i + 8);
     return hours.map((hour) => {
       const label = `${hour.toString().padStart(2, "0")}:00`;
       const matches = logs.filter((log) => {
-        const d =
-          typeof log.addedAt === "number"
-            ? new Date(log.addedAt)
-            : new Date(log.addedAt);
+        const d = new Date(log.addedAt);
         return d.getHours() === hour;
       });
       return {
         time: label,
         "Check-Ins": matches.length,
       };
+    });
+  };
+
+  const formatDateTime = (isoString: string) => {
+    const d = new Date(isoString);
+    return d.toLocaleDateString("en-ZA", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -102,14 +137,14 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
             Operations Intelligence
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Unified performance evaluation dashboard.
+            Monday-to-Monday student registrations, payment statuses, and
+            instructor lesson logs.
           </p>
         </div>
 
-        {/* FRONTEND DATE CONTEXT SELECTION BUTTONS */}
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <div className="flex items-center gap-2 bg-white border border-zinc-200 px-3 py-1.5 rounded-xl shadow-sm text-xs font-semibold text-zinc-700">
-            <Calendar className="h-3.5 w-3.5 text-zinc-400" />
+            <Calendar className="h-3.5 w-3.5 text-orange-600" />
             <input
               type="date"
               value={startDate}
@@ -144,7 +179,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
             <Clock className="h-4 w-4 text-orange-600" />
           </div>
           <div className="mt-4">
-            <h3 className="text-2xl font-black text-zinc-900 ">
+            <h3 className="text-2xl font-black text-zinc-900">
               {averageWaitTime}
             </h3>
             <p className="text-[10px] text-zinc-400 mt-1 font-medium">
@@ -204,10 +239,181 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           </div>
         </div>
       </div>
+      {/* TABLE 1: NEW STUDENTS REGISTERED (MONDAY TO MONDAY) */}
+      <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-orange-50 text-orange-600 border border-orange-100">
+              <Users className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-zinc-900">
+                New Students Joined (
+                {weeklyReport?.summary.totalNewStudents ?? 0})
+              </h3>
+              <p className="text-[11px] text-zinc-400">
+                Learners registered in this Monday-to-Monday period and their
+                payment status.
+              </p>
+            </div>
+          </div>
 
+          {weeklyReport && (
+            <div className="flex items-center gap-2 text-[11px] font-bold">
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+                {weeklyReport.summary.paidNewStudents} Paid
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 border border-red-200">
+                {weeklyReport.summary.unpaidNewStudents} Unpaid
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="overflow-x-auto">
+          {isGraphLoading ? (
+            <div className="py-8 text-center text-xs text-zinc-400 flex items-center justify-center gap-2">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin text-orange-500" />
+              Loading student registrations...
+            </div>
+          ) : !weeklyReport || weeklyReport.registeredLearners.length === 0 ? (
+            <div className="text-zinc-400 text-xs font-medium border border-dashed border-zinc-200 rounded-xl p-8 text-center">
+              No new students registered during this Monday-to-Monday window.
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-zinc-100 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                  <th className="py-2.5 px-3">Student</th>
+                  <th className="py-2.5 px-3">Branch</th>
+                  <th className="py-2.5 px-3">Course / Code</th>
+                  <th className="py-2.5 px-3">Lessons</th>
+                  <th className="py-2.5 px-3">Payment</th>
+                  <th className="py-2.5 px-3">Joined</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 text-xs">
+                {weeklyReport.registeredLearners.map((student) => (
+                  <tr
+                    key={student._id}
+                    className="hover:bg-zinc-50/80 transition-colors"
+                  >
+                    <td className="py-3 px-3">
+                      <div className="font-bold text-zinc-900">
+                        {student.name}
+                      </div>
+                      <div className="text-[11px] text-zinc-400">
+                        {student.phone || student.email}
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 font-medium text-zinc-700">
+                      {student.branchName}
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-zinc-100 text-zinc-800">
+                        {student.code}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-[11px] text-zinc-600">
+                      {student.lessonsSpent} / {student.totalLessons} used
+                    </td>
+                    <td className="py-3 px-3">
+                      {student.isPaid ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <CheckCircle2 className="h-3 w-3" /> Paid
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">
+                          <XCircle className="h-3 w-3" /> Unpaid
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-[11px] text-zinc-500 whitespace-nowrap">
+                      {formatDateTime(student.joinedAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* TABLE 2: COMPLETED LESSONS & INSTRUCTOR AUDIT LOG (MONDAY TO MONDAY) */}
+      <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+            <Car className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-zinc-900">
+              Completed Lessons Log (
+              {weeklyReport?.summary.totalLessonsCompleted ?? 0})
+            </h3>
+            <p className="text-[11px] text-zinc-400">
+              Tracks which student drove, what licence code they trained on, and
+              which instructor helped them.
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          {isGraphLoading ? (
+            <div className="py-8 text-center text-xs text-zinc-400 flex items-center justify-center gap-2">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-500" />
+              Loading completed lessons...
+            </div>
+          ) : !weeklyReport || weeklyReport.completedLessons.length === 0 ? (
+            <div className="text-zinc-400 text-xs font-medium border border-dashed border-zinc-200 rounded-xl p-8 text-center">
+              No lessons completed during this Monday-to-Monday window.
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-zinc-100 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                  <th className="py-2.5 px-3">Student</th>
+                  <th className="py-2.5 px-3">Code Driven</th>
+                  <th className="py-2.5 px-3">Instructor</th>
+                  <th className="py-2.5 px-3">Branch</th>
+                  <th className="py-2.5 px-3">Duration</th>
+                  <th className="py-2.5 px-3">Completed At</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 text-xs">
+                {weeklyReport.completedLessons.map((lesson) => (
+                  <tr
+                    key={lesson._id}
+                    className="hover:bg-zinc-50/80 transition-colors"
+                  >
+                    <td className="py-3 px-3 font-bold text-zinc-900">
+                      {lesson.studentName}
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-orange-50 text-orange-700 border border-orange-100">
+                        {lesson.code}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 font-semibold text-zinc-800">
+                      {lesson.instructorName}
+                    </td>
+                    <td className="py-3 px-3 text-zinc-600">
+                      {lesson.branchName}
+                    </td>
+                    <td className="py-3 px-3 font-mono text-[11px] text-zinc-600">
+                      {lesson.handlingDurationMins} mins
+                    </td>
+                    <td className="py-3 px-3 text-[11px] text-zinc-500 whitespace-nowrap">
+                      {formatDateTime(lesson.completedAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
       {/* DYNAMIC DATA GRAPHING CONTAINER LAYOUT GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* GRAPH 1: CROSS-BRANCH SYSTEM LEADERBOARD */}
         <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -273,7 +479,6 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           </div>
         </div>
 
-        {/* GRAPH 2: PEAK HOUR TRAFFIC FLOW DENSITY TIMELINE */}
         <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-4">
           <div>
             <h3 className="text-sm font-bold text-zinc-900">

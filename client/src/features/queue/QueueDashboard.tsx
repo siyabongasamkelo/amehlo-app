@@ -23,7 +23,6 @@ export const QueueDashboard: React.FC = () => {
     queue,
     rawAnalyticsLogs,
     isLoadingQueue,
-    insertQueueReal,
     updateQueueStatusReal,
     averageWaitTime,
     totalCompletedCount,
@@ -46,19 +45,6 @@ export const QueueDashboard: React.FC = () => {
   const [contactPhone, setContactPhone] = useState<string>(
     currentBranch?.phone || "035 111 2222",
   );
-
-  const handleManualInsert = async (
-    name: string,
-    phone: string,
-    serviceId: string,
-  ) => {
-    if (!activeBranchId) return;
-    try {
-      await insertQueueReal(name, phone, serviceId);
-    } catch (err) {
-      console.error("Manual lane injection failure:", err);
-    }
-  };
 
   const handleTerminalSignOut = async () => {
     const confirmExit = window.confirm(
@@ -108,6 +94,7 @@ export const QueueDashboard: React.FC = () => {
   if (isAnalyticsOpen && user?.role === "owner") {
     return (
       <AnalyticsPanel
+        companyId={currentBranch?.companyId || user?.assignedCompanyId}
         logs={rawAnalyticsLogs}
         averageWaitTime={averageWaitTime}
         bestWaitTime={bestWaitTime}

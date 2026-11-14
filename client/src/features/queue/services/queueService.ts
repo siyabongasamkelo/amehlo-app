@@ -19,6 +19,49 @@ export interface IQueueItem {
   addedAt: string;
 }
 
+export interface IRegisteredLearnerReportItem {
+  _id: string;
+  clerkId: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  branchName: string;
+  goal: "learners" | "drivers" | null;
+  code: string;
+  isPaid: boolean;
+  totalLessons: number;
+  lessonsSpent: number;
+  lessonsRemaining: number;
+  joinedAt: string;
+}
+
+export interface ICompletedLessonReportItem {
+  _id: string;
+  ticketId: string;
+  studentClerkId: string | null;
+  studentName: string;
+  code: string;
+  goal: string | null;
+  instructorClerkId: string;
+  instructorName: string;
+  branchName: string;
+  handlingDurationMins: number;
+  waitDurationMins: number;
+  completedAt: string;
+}
+
+export interface IWeeklyReportResponse {
+  period: { startDate: string; endDate: string };
+  summary: {
+    totalNewStudents: number;
+    paidNewStudents: number;
+    unpaidNewStudents: number;
+    totalLessonsCompleted: number;
+  };
+  registeredLearners: IRegisteredLearnerReportItem[];
+  completedLessons: ICompletedLessonReportItem[];
+}
+
 export const queueService = {
   // ➔ Fetch active waiting tickets via (GET /api/queue/:branchId)
   getBranchQueue: async (branchId: string): Promise<IQueueItem[]> => {
@@ -98,6 +141,20 @@ export const queueService = {
       `${API_URL.replace("/queue", "/analytics")}/cross-branch`,
       {
         params: { startDate, endDate },
+      },
+    );
+    return response.data;
+  },
+
+  getCompanyWeeklyReport: async (
+    companyId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<IWeeklyReportResponse> => {
+    const response = await axios.get(
+      `${API_URL.replace("/queue", "/analytics")}/company/${companyId}/weekly-report`,
+      {
+        params: startDate && endDate ? { startDate, endDate } : {},
       },
     );
     return response.data;

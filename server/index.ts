@@ -9,6 +9,7 @@ import branchRoutes from "./routes/branchRoutes.js";
 import serviceRoutes from "./routes/serviceRoutes.js";
 import whatsappRouter from "./routes/whatsappRoutes.js";
 import enrollmentRoutes from "./routes/enrollmentRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 
@@ -36,6 +37,7 @@ app.use("/api/branches", branchRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/whatsapp", whatsappRouter);
 app.use("/api/enrollments", enrollmentRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "online" });
