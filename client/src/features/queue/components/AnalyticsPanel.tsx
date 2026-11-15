@@ -27,6 +27,7 @@ import {
   Line,
   Legend,
 } from "recharts";
+import { studentService } from "../../student/services/studentService";
 
 interface AnalyticsPanelProps {
   companyId?: string;
@@ -72,6 +73,42 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
   const [weeklyReport, setWeeklyReport] =
     useState<IWeeklyReportResponse | null>(null);
   const [isGraphLoading, setIsGraphLoading] = useState<boolean>(false);
+  const [toppingUpId, setToppingUpId] = useState<string | null>(null);
+
+  const handleRecordTopUp = async (
+    enrollmentId: string | null,
+    studentName: string,
+    missingBalance: number,
+  ) => {
+    if (!enrollmentId) return;
+
+    const input = window.prompt(
+      `${studentName} owes R${missingBalance.toLocaleString()}.\nEnter the Rand amount being paid now:`,
+      String(missingBalance),
+    );
+
+    if (input === null) return; // User clicked Cancel
+    const amount = Number(input.trim());
+
+    if (Number.isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid Rand amount greater than 0.");
+      return;
+    }
+
+    setToppingUpId(enrollmentId);
+    try {
+      await studentService.recordEnrollmentPayment(enrollmentId, amount);
+      await fetchMetrics(); // Immediately refreshes Expected, Collected, Missing & table row
+    } catch (err: any) {
+      console.error("Failed recording payment top-up:", err);
+      alert(
+        err?.response?.data?.error ||
+          "Could not record payment top-up. Please try again.",
+      );
+    } finally {
+      setToppingUpId(null);
+    }
+  };
 
   const fetchMetrics = async () => {
     setIsGraphLoading(true);
@@ -239,32 +276,38 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           </div>
         </div>
       </div>
-      {/* TABLE 1: NEW STUDENTS REGISTERED (MONDAY TO MONDAY) */}
+      {/* TABLE 1: NEW STUDENTS REGISTERED & REVENUE LEDGER (MONDAY TO MONDAY) */}
       <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-orange-50 text-orange-600 border border-orange-100">
               <Users className="h-4 w-4" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-zinc-900">
-                New Students Joined (
+                New Students & Revenue Ledger (
                 {weeklyReport?.summary.totalNewStudents ?? 0})
               </h3>
               <p className="text-[11px] text-zinc-400">
-                Learners registered in this Monday-to-Monday period and their
-                payment status.
+                Monday-to-Monday registrations, course prices, cash collected,
+                and missing balances.
               </p>
             </div>
           </div>
 
           {weeklyReport && (
-            <div className="flex items-center gap-2 text-[11px] font-bold">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+              <span className="px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-800 border border-zinc-200">
+                Expected: R
+                {weeklyReport.summary.totalExpectedRevenue.toLocaleString()}
+              </span>
               <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
-                {weeklyReport.summary.paidNewStudents} Paid
+                Collected: R
+                {weeklyReport.summary.totalCollectedRevenue.toLocaleString()}
               </span>
               <span className="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 border border-red-200">
-                {weeklyReport.summary.unpaidNewStudents} Unpaid
+                Missing: R
+                {weeklyReport.summary.totalMissingBalance.toLocaleString()}
               </span>
             </div>
           )}
@@ -274,7 +317,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           {isGraphLoading ? (
             <div className="py-8 text-center text-xs text-zinc-400 flex items-center justify-center gap-2">
               <RefreshCw className="h-3.5 w-3.5 animate-spin text-orange-500" />
-              Loading student registrations...
+              Loading student registrations & revenue...
             </div>
           ) : !weeklyReport || weeklyReport.registeredLearners.length === 0 ? (
             <div className="text-zinc-400 text-xs font-medium border border-dashed border-zinc-200 rounded-xl p-8 text-center">
@@ -286,9 +329,11 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
                 <tr className="border-b border-zinc-100 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                   <th className="py-2.5 px-3">Student</th>
                   <th className="py-2.5 px-3">Branch</th>
-                  <th className="py-2.5 px-3">Course / Code</th>
-                  <th className="py-2.5 px-3">Lessons</th>
-                  <th className="py-2.5 px-3">Payment</th>
+                  <th className="py-2.5 px-3">Service / Code</th>
+                  <th className="py-2.5 px-3">Course Price</th>
+                  <th className="py-2.5 px-3">Amount Paid</th>
+                  <th className="py-2.5 px-3">Missing</th>
+                  <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3">Joined</th>
                 </tr>
               </thead>
@@ -314,20 +359,58 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
                         {student.code}
                       </span>
                     </td>
-                    <td className="py-3 px-3 font-mono text-[11px] text-zinc-600">
-                      {student.lessonsSpent} / {student.totalLessons} used
+                    <td className="py-3 px-3 font-mono font-semibold text-zinc-700">
+                      R{student.supposedPrice.toLocaleString()}
                     </td>
-                    <td className="py-3 px-3">
-                      {student.isPaid ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle2 className="h-3 w-3" /> Paid
+                    <td className="py-3 px-3 font-mono font-bold text-emerald-700">
+                      R{student.amountPaid.toLocaleString()}
+                    </td>
+                    <td className="py-3 px-3 font-mono font-bold">
+                      {student.missingBalance > 0 ? (
+                        <span className="text-red-600">
+                          R{student.missingBalance.toLocaleString()}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">
-                          <XCircle className="h-3 w-3" /> Unpaid
-                        </span>
+                        <span className="text-zinc-400">R0</span>
                       )}
                     </td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-2">
+                        {student.isPaid && student.missingBalance === 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="h-3 w-3" /> Paid
+                          </span>
+                        ) : student.amountPaid > 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            Deposit
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">
+                            <XCircle className="h-3 w-3" /> Unpaid
+                          </span>
+                        )}
+
+                        {student.missingBalance > 0 && student.enrollmentId && (
+                          <button
+                            type="button"
+                            disabled={toppingUpId === student.enrollmentId}
+                            onClick={() =>
+                              handleRecordTopUp(
+                                student.enrollmentId,
+                                student.name,
+                                student.missingBalance,
+                              )
+                            }
+                            className="px-2 py-0.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] font-bold transition-all cursor-pointer disabled:opacity-50"
+                          >
+                            {toppingUpId === student.enrollmentId
+                              ? "Saving..."
+                              : "+ Top Up"}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+
                     <td className="py-3 px-3 text-[11px] text-zinc-500 whitespace-nowrap">
                       {formatDateTime(student.joinedAt)}
                     </td>

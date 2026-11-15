@@ -21,6 +21,7 @@ export interface IQueueItem {
 
 export interface IRegisteredLearnerReportItem {
   _id: string;
+  enrollmentId: string | null;
   clerkId: string;
   name: string;
   email: string;
@@ -28,13 +29,15 @@ export interface IRegisteredLearnerReportItem {
   branchName: string;
   goal: "learners" | "drivers" | null;
   code: string;
+  supposedPrice: number;
+  amountPaid: number;
+  missingBalance: number;
   isPaid: boolean;
   totalLessons: number;
   lessonsSpent: number;
   lessonsRemaining: number;
   joinedAt: string;
 }
-
 export interface ICompletedLessonReportItem {
   _id: string;
   ticketId: string;
@@ -57,11 +60,13 @@ export interface IWeeklyReportResponse {
     paidNewStudents: number;
     unpaidNewStudents: number;
     totalLessonsCompleted: number;
+    totalExpectedRevenue: number;
+    totalCollectedRevenue: number;
+    totalMissingBalance: number;
   };
   registeredLearners: IRegisteredLearnerReportItem[];
   completedLessons: ICompletedLessonReportItem[];
 }
-
 export const queueService = {
   // ➔ Fetch active waiting tickets via (GET /api/queue/:branchId)
   getBranchQueue: async (branchId: string): Promise<IQueueItem[]> => {

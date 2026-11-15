@@ -36,20 +36,20 @@ export const StudentSearchHUD: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchBranchRoster = async () => {
     if (!activeBranchId) return;
-    const fetchBranchRoster = async () => {
-      setIsLoadingStaff(true);
-      try {
-        const staffData =
-          await customerService.getBranchWorkers(activeBranchId);
-        setBranchStaff(staffData);
-      } catch (err) {
-        console.error("Failed loading staff roster:", err);
-      } finally {
-        setIsLoadingStaff(false);
-      }
-    };
+    setIsLoadingStaff(true);
+    try {
+      const staffData = await customerService.getBranchWorkers(activeBranchId);
+      setBranchStaff(staffData);
+    } catch (err) {
+      console.error("Failed loading staff roster:", err);
+    } finally {
+      setIsLoadingStaff(false);
+    }
+  };
+
+  useEffect(() => {
     fetchBranchRoster();
   }, [activeBranchId]);
 
@@ -84,6 +84,9 @@ export const StudentSearchHUD: React.FC = () => {
 
   const handleWalkInCreated = (createdStudent: ISearchedStudent) => {
     setSelectedStudent(createdStudent);
+    if (createdStudent.enrollment?.serviceId) {
+      setSelectedServiceId(createdStudent.enrollment.serviceId);
+    }
     setErrorMsg(null);
     setHudMode("checkin");
   };
@@ -145,7 +148,13 @@ export const StudentSearchHUD: React.FC = () => {
         <WalkInRegistrationForm
           companyId={companyId}
           branchId={activeBranchId || undefined}
+          userRole={dbUser?.role}
+          services={services}
           onSuccess={handleWalkInCreated}
+          onInstructorCreated={() => {
+            fetchBranchRoster();
+            setHudMode("checkin");
+          }}
         />
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">

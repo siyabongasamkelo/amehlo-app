@@ -9,18 +9,33 @@ export interface IServiceData {
   _id: string;
   businessId: string;
   name: string;
+  price: number;
   createdAt: string;
+}
+
+export interface IServiceSetupInput {
+  name: string;
+  price: number;
 }
 
 export const categoryService = {
   setupServices: async (
     businessId: string,
-    services: string[],
+    services: (string | IServiceSetupInput)[],
   ): Promise<void> => {
     await axios.post(`${API_URL}/setup`, { businessId, services });
   },
 
-  // ➔ Updated to query via branchId so both owners and workers clear the matching loop seamlessly
+  updateServicePrice: async (
+    serviceId: string,
+    price: number,
+  ): Promise<IServiceData> => {
+    const response = await axios.patch(`${API_URL}/${serviceId}/price`, {
+      price,
+    });
+    return response.data.service;
+  },
+
   getBusinessServices: async (branchId: string): Promise<IServiceData[]> => {
     const response = await axios.get(`${API_URL}/branch/${branchId}`);
     return response.data.services;

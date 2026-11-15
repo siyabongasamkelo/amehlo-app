@@ -59,9 +59,9 @@ export const QueueDashboard: React.FC = () => {
     }
   };
 
-  const handleConfirmTurn = (ticket: any) => {
+  const handleConfirmTurn = (ticket: any, selectedInstructorId?: string) => {
     const nextStatus = ticket.status === "Active" ? "Completed" : "Active";
-    updateQueueStatusReal(ticket._id, nextStatus);
+    updateQueueStatusReal(ticket._id, nextStatus, selectedInstructorId);
     setPromptTicket(null);
   };
 
@@ -148,6 +148,8 @@ export const QueueDashboard: React.FC = () => {
 
       <ConfirmTurnModal
         ticket={promptTicket}
+        branchId={activeBranchId}
+        defaultStaffClerkId={user?.clerkId}
         onClose={() => setPromptTicket(null)}
         onConfirm={handleConfirmTurn}
       />

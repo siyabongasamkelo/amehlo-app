@@ -73,8 +73,13 @@ export const getCompanyWeeklyReport = async (
 
     const registeredLearnersList = newStudents.map((student) => {
       const enrollment = enrollmentByClerkId.get(student.clerkId);
+      const supposedPrice = enrollment?.supposedPrice ?? 0;
+      const amountPaid = enrollment?.amountPaid ?? 0;
+      const missingBalance = Math.max(0, supposedPrice - amountPaid);
+
       return {
         _id: student._id,
+        enrollmentId: enrollment?._id || null,
         clerkId: student.clerkId,
         name: student.name,
         email: student.email,
@@ -84,6 +89,9 @@ export const getCompanyWeeklyReport = async (
           : "Unassigned",
         goal: enrollment?.goal || null,
         code: enrollment?.code || "Not Enrolled",
+        supposedPrice,
+        amountPaid,
+        missingBalance,
         isPaid: enrollment?.isPaid ?? false,
         totalLessons: enrollment?.totalLessons ?? 0,
         lessonsSpent: enrollment?.lessonsSpent ?? 0,
@@ -152,6 +160,19 @@ export const getCompanyWeeklyReport = async (
       };
     });
 
+    const totalExpectedRevenue = registeredLearnersList.reduce(
+      (sum, s) => sum + s.supposedPrice,
+      0,
+    );
+    const totalCollectedRevenue = registeredLearnersList.reduce(
+      (sum, s) => sum + s.amountPaid,
+      0,
+    );
+    const totalMissingBalance = registeredLearnersList.reduce(
+      (sum, s) => sum + s.missingBalance,
+      0,
+    );
+
     res.status(200).json({
       period: {
         startDate: start.toISOString(),
@@ -163,6 +184,9 @@ export const getCompanyWeeklyReport = async (
         unpaidNewStudents: registeredLearnersList.filter((s) => !s.isPaid)
           .length,
         totalLessonsCompleted: completedLessonsList.length,
+        totalExpectedRevenue,
+        totalCollectedRevenue,
+        totalMissingBalance,
       },
       registeredLearners: registeredLearnersList,
       completedLessons: completedLessonsList,

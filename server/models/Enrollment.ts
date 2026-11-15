@@ -1,10 +1,13 @@
 import { Schema, model, Document } from "mongoose";
 
 export interface IEnrollment extends Document {
-  studentClerkId: string; // Links directly to User.clerkId
+  studentClerkId: string;
+  serviceId?: string | null; // ➔ Links back to the chosen Service
   goal: "learners" | "drivers";
-  code: string; // e.g., "Code 8", "Code 10", "Code 14", "Code 2 (Learners)"
-  isPaid: boolean;
+  code: string;
+  supposedPrice: number; // ➔ Total agreed price for this course/bundle
+  amountPaid: number; // ➔ Cumulative Rand amount paid so far
+  isPaid: boolean; // ➔ Automatically true once amountPaid >= supposedPrice (or verified)
   totalLessons: number;
   lessonsSpent: number;
   lessonsRemaining: number;
@@ -14,8 +17,11 @@ export interface IEnrollment extends Document {
 
 const EnrollmentSchema = new Schema<IEnrollment>({
   studentClerkId: { type: String, required: true, index: true },
+  serviceId: { type: String, default: null, index: true },
   goal: { type: String, enum: ["learners", "drivers"], required: true },
   code: { type: String, required: true, trim: true },
+  supposedPrice: { type: Number, default: 0, min: 0 },
+  amountPaid: { type: Number, default: 0, min: 0 },
   isPaid: { type: Boolean, default: false },
   totalLessons: { type: Number, required: true, min: 1 },
   lessonsSpent: { type: Number, default: 0, min: 0 },

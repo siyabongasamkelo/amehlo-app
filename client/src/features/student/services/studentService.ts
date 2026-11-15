@@ -17,16 +17,22 @@ export interface IStudentSyncPayload {
 
 export interface IEnrollmentPayload {
   studentClerkId: string;
+  serviceId?: string;
   goal: "learners" | "drivers";
   code: string;
   lessonsCount: number;
+  supposedPrice?: number;
+  amountPaid?: number;
 }
 
 export interface IEnrollmentData {
   _id: string;
   studentClerkId: string;
+  serviceId?: string | null;
   goal: "learners" | "drivers";
   code: string;
+  supposedPrice: number;
+  amountPaid: number;
   isPaid: boolean;
   totalLessons: number;
   lessonsSpent: number;
@@ -181,5 +187,27 @@ export const studentService = {
       payload,
     );
     return response.data.user;
+  },
+
+  adminCreateWorker: async (
+    payload: IAdminCreateStudentPayload,
+  ): Promise<IUserData> => {
+    const response = await axios.post(
+      `${BASE_API_URL}/users/admin-create-worker`,
+      payload,
+    );
+    return response.data.user;
+  },
+
+  // ➔ Record an incremental Rand top-up (e.g. client owes R2,000 and pays R1,000)
+  recordEnrollmentPayment: async (
+    enrollmentId: string,
+    additionalAmount: number,
+  ): Promise<{ enrollment: IEnrollmentData; balanceRemaining: number }> => {
+    const response = await axios.patch(
+      `${BASE_API_URL}/enrollments/${enrollmentId}/payment`,
+      { additionalAmount },
+    );
+    return response.data;
   },
 };

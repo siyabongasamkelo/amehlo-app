@@ -28,6 +28,7 @@ interface QueueContextType {
   updateQueueStatusReal: (
     ticketId: string,
     status: "Waiting" | "Active" | "Completed" | "Absent",
+    servedById?: string,
   ) => Promise<void>;
 }
 
@@ -94,6 +95,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateQueueStatusReal = async (
     ticketId: string,
     status: "Waiting" | "Active" | "Completed" | "Absent",
+    servedById?: string,
   ) => {
     if (!activeBranchId) return;
     try {
@@ -102,8 +104,9 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({
       } else if (status === "Active") {
         await queueService.startTurn(ticketId);
       } else if (status === "Completed") {
-        const activeClerkId = dbUser?.clerkId || "SYSTEM_OPERATOR";
-        await queueService.completeTurn(ticketId, activeClerkId);
+        const finalInstructorId =
+          servedById || dbUser?.clerkId || "SYSTEM_OPERATOR";
+        await queueService.completeTurn(ticketId, finalInstructorId);
       } else if (status === "Absent") {
         await queueService.purgeGhostClient(ticketId);
       }

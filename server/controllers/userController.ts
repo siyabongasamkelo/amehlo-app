@@ -330,3 +330,89 @@ export const adminCreateStudent = async (
     });
   }
 };
+
+// ➔ OWNER / ADMIN CREATES AN INSTRUCTOR / WORKER DIRECTLY (POST /api/users/admin-create-worker)
+export const adminCreateWorker = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { name, email, phone, companyId, branchId } = req.body;
+
+    if (!name || !email || !companyId || !branchId) {
+      res.status(400).json({
+        error:
+          "Name, email, companyId, and branchId are required to register an instructor.",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 1. Check if the user already exists in MongoDB
+    const existingMongoUser = await User.findOne({ email: normalizedEmail });
+    if (existingMongoUser) {
+      // If they exist without a branch/company assigned, bind them cleanly
+      if (!existingMongoUser.assignedBranchId) {
+        existingMongoUser.role = "worker";
+        existingMongoUser.assignedCompanyId = companyId;
+        existingMongoUser.assignedBranchId = branchId;
+        await existingMongoUser.save();
+      }
+
+      res.status(200).json({
+        message: "Instructor already exists in database.",
+        user: existingMongoUser,
+      });
+      return;
+    }
+
+    // 2. Check if the email already exists in Clerk
+    const existingClerkUsers = await clerkClient.users.getUserList({
+      emailAddress: [normalizedEmail],
+    });
+
+    let clerkUser = existingClerkUsers.data[0];
+
+    // 3. Create Clerk account with no password required if not in Clerk yet
+    if (!clerkUser) {
+      const nameParts = name.trim().split(" ");
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(" ") || undefined;
+
+      clerkUser = await clerkClient.users.createUser({
+        emailAddress: [normalizedEmail],
+        firstName,
+        lastName,
+        skipPasswordRequirement: true,
+        legalAcceptedAt: new Date(),
+      });
+    }
+
+    // 4. Save the new instructor into MongoDB locked to role: "worker"
+    const newWorker = new User({
+      clerkId: clerkUser.id,
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone ? phone.trim() : null,
+      role: "worker",
+      assignedCompanyId: companyId,
+      assignedBranchId: branchId,
+    });
+
+    await newWorker.save();
+
+    res.status(201).json({
+      message: "Instructor registered successfully.",
+      user: newWorker,
+    });
+  } catch (error: any) {
+    console.error("Admin create worker error:", error);
+    const clerkErrorMessage =
+      error?.errors?.[0]?.longMessage || error?.errors?.[0]?.message;
+    res.status(500).json({
+      error:
+        clerkErrorMessage || error.message || "Failed to register instructor.",
+    });
+  }
+};

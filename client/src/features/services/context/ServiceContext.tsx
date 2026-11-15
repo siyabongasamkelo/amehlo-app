@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-// import { useApp } from "../../../context/AppContext";
 import { categoryService } from "../services/categoryService";
-import type { IServiceData } from "../services/categoryService";
+import type {
+  IServiceData,
+  IServiceSetupInput,
+} from "../services/categoryService";
 import { useBranch } from "../../branch/context/BranchContext";
 
 interface ServiceContextType {
@@ -10,8 +12,9 @@ interface ServiceContextType {
   loadBusinessServices: (businessId: string) => Promise<void>;
   configureInitialServices: (
     businessId: string,
-    serviceNames: string[],
+    services: (string | IServiceSetupInput)[],
   ) => Promise<void>;
+  updateServicePrice: (serviceId: string, price: number) => Promise<void>;
 }
 
 const ServiceContext = createContext<ServiceContextType | undefined>(undefined);
@@ -19,7 +22,6 @@ const ServiceContext = createContext<ServiceContextType | undefined>(undefined);
 export const ServiceProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // const { activeBranchId } = useApp();
   const { activeBranchId } = useBranch();
 
   const [services, setServices] = useState<IServiceData[]>([]);
@@ -39,10 +41,10 @@ export const ServiceProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const configureInitialServices = async (
     businessId: string,
-    serviceNames: string[],
+    serviceItems: (string | IServiceSetupInput)[],
   ) => {
     try {
-      await categoryService.setupServices(businessId, serviceNames);
+      await categoryService.setupServices(businessId, serviceItems);
       await loadBusinessServices(businessId);
     } catch (err) {
       console.error("Failed saving workspace category mappings:", err);
@@ -50,7 +52,11 @@ export const ServiceProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Automatically load service lanes whenever the active branch changes
+  const updateServicePrice = async (serviceId: string, price: number) => {
+    const updated = await categoryService.updateServicePrice(serviceId, price);
+    setServices((prev) => prev.map((s) => (s._id === serviceId ? updated : s)));
+  };
+
   useEffect(() => {
     if (activeBranchId) {
       loadBusinessServices(activeBranchId);
@@ -66,6 +72,7 @@ export const ServiceProvider: React.FC<{ children: React.ReactNode }> = ({
         isLoadingServices,
         loadBusinessServices,
         configureInitialServices,
+        updateServicePrice,
       }}
     >
       {children}
