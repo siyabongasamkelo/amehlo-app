@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   XCircle,
   Car,
+  Crown,
+  AlertTriangle,
 } from "lucide-react";
 import {
   BarChart,
@@ -56,12 +58,12 @@ const getDefaultMondayRange = () => {
     end: nextMonday.toISOString().slice(0, 10),
   };
 };
+
 export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
   companyId,
   logs,
   averageWaitTime,
   bestWaitTime,
-  worstWaitTime,
   totalCompletedCount,
   onClose,
 }) => {
@@ -74,7 +76,6 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
     useState<IWeeklyReportResponse | null>(null);
   const [isGraphLoading, setIsGraphLoading] = useState<boolean>(false);
   const [toppingUpId, setToppingUpId] = useState<string | null>(null);
-
   const handleRecordTopUp = async (
     enrollmentId: string | null,
     studentName: string,
@@ -87,7 +88,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
       String(missingBalance),
     );
 
-    if (input === null) return; // User clicked Cancel
+    if (input === null) return;
     const amount = Number(input.trim());
 
     if (Number.isNaN(amount) || amount <= 0) {
@@ -98,7 +99,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
     setToppingUpId(enrollmentId);
     try {
       await studentService.recordEnrollmentPayment(enrollmentId, amount);
-      await fetchMetrics(); // Immediately refreshes Expected, Collected, Missing & table row
+      await fetchMetrics();
     } catch (err: any) {
       console.error("Failed recording payment top-up:", err);
       alert(
@@ -165,6 +166,10 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
     });
   };
 
+  const vipRevenue = weeklyReport?.summary.totalVipRevenue ?? 0;
+  const vipCount = weeklyReport?.summary.totalVipCount ?? 0;
+  const suspiciousGapsCount = weeklyReport?.summary.suspiciousGapsCount ?? 0;
+
   return (
     <div className="max-w-7xl w-full mx-auto px-4 md:px-8 py-6 space-y-6 animate-in slide-in-from-bottom-4 duration-300">
       {/* HEADER COCKPIT GRID CONTROL PANEL */}
@@ -174,8 +179,8 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
             Operations Intelligence
           </h1>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Monday-to-Monday student registrations, payment statuses, and
-            instructor lesson logs.
+            Monday-to-Monday student registrations, VIP pass cash-ups, and
+            instructor audit logs.
           </p>
         </div>
 
@@ -206,8 +211,27 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
         </div>
       </div>
 
-      {/* METRIC INTELLIGENCE SINGLE BRANCH DISPLAY CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* METRIC INTELLIGENCE DISPLAY CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* VIP PASS REVENUE HIGHLIGHT CARD */}
+        <div className="bg-amber-50/40 border border-amber-300 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
+          <div className="flex items-center justify-between text-amber-800">
+            <span className="text-[11px] font-black uppercase tracking-wider">
+              VIP Pass Revenue
+            </span>
+            <Crown className="h-4 w-4 text-amber-600" />
+          </div>
+          <div className="mt-4">
+            <h3 className="text-2xl font-black text-amber-700">
+              R{vipRevenue.toLocaleString()}
+            </h3>
+            <p className="text-[10px] text-amber-800/80 mt-1 font-semibold">
+              {vipCount} fast-track {vipCount === 1 ? "pass" : "passes"} sold
+              this week.
+            </p>
+          </div>
+        </div>
+
         <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[11px] font-bold uppercase tracking-wider">
@@ -262,16 +286,17 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
         <div className="bg-white border border-zinc-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between text-zinc-400">
             <span className="text-[11px] font-bold uppercase tracking-wider">
-              Max Delays Caught
+              Turnaround Gap Alerts
             </span>
             <ShieldAlert className="h-4 w-4 text-red-500" />
           </div>
           <div className="mt-4">
             <h3 className="text-2xl font-black text-red-600">
-              {worstWaitTime}
+              {suspiciousGapsCount}{" "}
+              {suspiciousGapsCount === 1 ? "Alert" : "Alerts"}
             </h3>
             <p className="text-[10px] text-zinc-400 mt-1 font-medium">
-              Worst tracking lane incident recorded.
+              25+ min idle gaps between yard lessons.
             </p>
           </div>
         </div>
@@ -304,6 +329,9 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
               <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
                 Collected: R
                 {weeklyReport.summary.totalCollectedRevenue.toLocaleString()}
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+                VIP Cash: R{vipRevenue.toLocaleString()}
               </span>
               <span className="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 border border-red-200">
                 Missing: R
@@ -421,7 +449,6 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           )}
         </div>
       </div>
-
       {/* TABLE 2: COMPLETED LESSONS & INSTRUCTOR AUDIT LOG (MONDAY TO MONDAY) */}
       <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-4">
         <div className="flex items-center gap-2.5">
@@ -434,8 +461,8 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
               {weeklyReport?.summary.totalLessonsCompleted ?? 0})
             </h3>
             <p className="text-[11px] text-zinc-400">
-              Tracks which student drove, what licence code they trained on, and
-              which instructor helped them.
+              Tracks which student drove, instructor credit, VIP pass cash
+              collectors, and turnaround gap alerts.
             </p>
           </div>
         </div>
@@ -458,15 +485,22 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
                   <th className="py-2.5 px-3">Code Driven</th>
                   <th className="py-2.5 px-3">Instructor</th>
                   <th className="py-2.5 px-3">Branch</th>
-                  <th className="py-2.5 px-3">Duration</th>
+                  <th className="py-2.5 px-3">VIP Pass / Collector</th>
+                  <th className="py-2.5 px-3">Duration & Audit</th>
                   <th className="py-2.5 px-3">Completed At</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 text-xs">
-                {weeklyReport.completedLessons.map((lesson) => (
+                {weeklyReport.completedLessons.map((lesson: any) => (
                   <tr
                     key={lesson._id}
-                    className="hover:bg-zinc-50/80 transition-colors"
+                    className={`transition-colors ${
+                      lesson.isSuspiciousGap
+                        ? "bg-red-50/40 hover:bg-red-50/70"
+                        : lesson.isVip
+                          ? "bg-amber-50/25 hover:bg-amber-50/50"
+                          : "hover:bg-zinc-50/80"
+                    }`}
                   >
                     <td className="py-3 px-3 font-bold text-zinc-900">
                       {lesson.studentName}
@@ -482,8 +516,38 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
                     <td className="py-3 px-3 text-zinc-600">
                       {lesson.branchName}
                     </td>
-                    <td className="py-3 px-3 font-mono text-[11px] text-zinc-600">
-                      {lesson.handlingDurationMins} mins
+                    <td className="py-3 px-3">
+                      {lesson.isVip ? (
+                        <div className="space-y-0.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300">
+                            <Crown className="h-3 w-3 text-amber-600" />
+                            VIP R{lesson.vipFee || 100}
+                          </span>
+                          <div className="text-[10px] font-semibold text-zinc-500">
+                            By: {lesson.vipGrantedByName || "Desk Staff"}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-zinc-400">
+                          Standard
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-[11px] text-zinc-600">
+                          {lesson.handlingDurationMins} mins
+                        </span>
+                        {lesson.isSuspiciousGap && (
+                          <span
+                            title={`Next lesson started ${lesson.idleGapMins} mins after previous lesson ended`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-100 text-red-700 border border-red-200"
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                            {lesson.idleGapMins}m Gap
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-3 text-[11px] text-zinc-500 whitespace-nowrap">
                       {formatDateTime(lesson.completedAt)}

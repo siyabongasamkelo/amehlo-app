@@ -31,6 +31,14 @@ export const joinQueue = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    if (isRemoteJoin !== false) {
+      res.status(403).json({
+        error:
+          "In-person check-in required: Scan the branch QR poster at the yard or check in at the front desk.",
+      });
+      return;
+    }
+
     let resolvedName = name?.trim();
     let resolvedPhone = phone?.trim();
     let resolvedEmail = email?.trim();
@@ -203,6 +211,7 @@ export const completeTurn = async (
       Math.round((now.getTime() - startTime) / 1000 / 60),
     );
 
+    // Inside completeTurn in queueController.ts:
     await CompletionLog.create({
       ticketId: ticket.ticketId,
       branchId: ticket.branchId,
@@ -212,6 +221,9 @@ export const completeTurn = async (
       waitDurationMins,
       handlingDurationMins,
       presenceStatus: ticket.presenceStatus,
+      isVip: ticket.isVip || false,
+      vipFee: ticket.vipFee || 0,
+      vipGrantedBy: ticket.vipGrantedBy || null,
       addedAt: ticket.addedAt,
       completedAt: now,
     });
@@ -563,6 +575,61 @@ export const getStudentLessonHistory = async (
     res.status(200).json({ history });
   } catch (error: any) {
     console.error("Fetch student lesson history failure:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// POST /api/queue/:id/vip
+// Add to queueController.ts:
+export const upgradeToVip = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { grantedByClerkId, vipFee = 100 } = req.body;
+
+    if (!grantedByClerkId) {
+      res.status(400).json({
+        error:
+          "Validation failed: Operator Clerk ID is required to log VIP collection.",
+      });
+      return;
+    }
+
+    const ticket = await QueueTicket.findById(id);
+    if (!ticket) {
+      res.status(404).json({ error: "Active lane ticket not found." });
+      return;
+    }
+
+    if (ticket.status === "Active") {
+      res
+        .status(400)
+        .json({ error: "Ticket is already being served at the counter." });
+      return;
+    }
+
+    ticket.isVip = true;
+    ticket.vipFee = Number(vipFee);
+    ticket.vipGrantedBy = grantedByClerkId;
+    ticket.vipGrantedAt = new Date();
+    await ticket.save();
+
+    await resequenceBranchQueue(ticket.branchId);
+
+    const freshQueue = await QueueTicket.find({
+      branchId: ticket.branchId,
+    }).sort({ position: 1 });
+
+    io.to(ticket.branchId).emit("queue_updated", freshQueue);
+
+    res.status(200).json({
+      message: "VIP priority pass activated.",
+      queue: freshQueue,
+    });
+  } catch (error: any) {
+    console.error("VIP upgrade processing error:", error);
     res.status(500).json({ error: error.message });
   }
 };

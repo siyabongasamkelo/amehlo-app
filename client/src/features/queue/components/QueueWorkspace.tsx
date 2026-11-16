@@ -6,9 +6,14 @@ interface QueueWorkspaceProps {
   queue: any[];
   services: any[];
   userClerkId?: string;
-  userRole?: "owner" | "worker" | "student"; // ➔ Declare it here
+  userRole?: string;
   isLoadingQueue: boolean;
-  onUpdateStatus: (ticketId: string, status: string) => void;
+  onUpdateStatus: (
+    ticketId: string,
+    status: "Waiting" | "Active" | "Completed" | "Absent",
+    servedById?: string,
+  ) => Promise<void>;
+  onUpgradeVip?: (ticketId: string) => Promise<void>; // <-- Accept prop
   onPromptAction: (ticket: any) => void;
 }
 
@@ -16,10 +21,11 @@ export const QueueWorkspace: React.FC<QueueWorkspaceProps> = ({
   queue,
   services,
   userClerkId,
+  userRole,
   isLoadingQueue,
   onUpdateStatus,
+  onUpgradeVip, // <-- Destructure here
   onPromptAction,
-  userRole,
 }) => {
   // Inside QueueDashboard.tsx (line 20)
 
@@ -112,6 +118,7 @@ export const QueueWorkspace: React.FC<QueueWorkspaceProps> = ({
                 item={item}
                 serviceBadgeLabel={serviceBadgeLabel}
                 onUpdateStatus={onUpdateStatus}
+                onUpgradeVip={onUpgradeVip} // <-- Forward down to card
                 onPromptAction={onPromptAction}
               />
             );

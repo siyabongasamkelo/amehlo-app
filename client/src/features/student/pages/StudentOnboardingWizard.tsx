@@ -1,45 +1,137 @@
-import React, { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { StepSchool } from "../components/onboarding/StepSchool";
-import { StepGoal } from "../components/onboarding/StepGoal";
-import type { GoalType } from "../components/onboarding/StepGoal";
-import { StepCode } from "../components/onboarding/StepCode";
-import { StepPackage } from "../components/onboarding/StepPackage";
+// import React, { useState } from "react";
+// import { useNavigate, Navigate } from "react-router-dom";
+// import { ArrowLeft, Loader2 } from "lucide-react";
+// import { StepSchool } from "../components/onboarding/StepSchool";
+// import { StepGoal } from "../components/onboarding/StepGoal";
+// import type { GoalType } from "../components/onboarding/StepGoal";
+// import { StepCode } from "../components/onboarding/StepCode";
+// import { StepPackage } from "../components/onboarding/StepPackage";
+// import { useStudent } from "../context/StudentContext";
+
+// export const StudentOnboardingWizard: React.FC = () => {
+//   const navigate = useNavigate();
+//   const { saveOnboardingEnrollment, enrollment, isLoadingEnrollment } =
+//     useStudent();
+
+//   const [step, setStep] = useState<number>(1);
+//   const [companyId, setCompanyId] = useState<string>("");
+//   const [branchId, setBranchId] = useState<string>("");
+//   const [goal, setGoal] = useState<GoalType>(null);
+//   const [code, setCode] = useState<string>("");
+//   const [lessonsCount, setLessonsCount] = useState<number>(10);
+//   const [isSaving, setIsSaving] = useState<boolean>(false);
+
+//   const handleFinish = async () => {
+//     if (!companyId || !goal || !code) return;
+//     setIsSaving(true);
+//     try {
+//       await saveOnboardingEnrollment(
+//         companyId,
+//         goal,
+//         code,
+//         lessonsCount,
+//         branchId || undefined,
+//       );
+//       navigate("/student/portal");
+//     } catch (err) {
+//       console.error("Failed saving onboarding enrollment:", err);
+//       alert("Could not save your course selection. Please try again.");
+//     } finally {
+//       setIsSaving(false);
+//     }
+//   };
+
+//   if (isLoadingEnrollment) {
+//     return (
+//       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
+//         <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
+//       </div>
+//     );
+//   }
+
+//   if (enrollment) {
+//     return <Navigate to="/student/portal" replace />;
+//   }
+
+//   return (
+//     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-4 font-sans antialiased text-zinc-900">
+//       <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl p-6 md:p-8 shadow-xl space-y-6">
+//         <div className="space-y-2">
+//           <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+//             <span>Step {step} of 4</span>
+//             {step > 1 && (
+//               <button
+//                 type="button"
+//                 onClick={() => setStep(step - 1)}
+//                 className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-900 cursor-pointer"
+//               >
+//                 <ArrowLeft className="h-3 w-3" /> Back
+//               </button>
+//             )}
+//           </div>
+//           <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
+//             <div
+//               className="h-full bg-orange-600 transition-all duration-300 rounded-full"
+//               style={{ width: `${(step / 4) * 100}%` }}
+//             />
+//           </div>
+//         </div>
+
+//         {step === 1 && (
+//           <StepSchool
+//             selectedCompanyId={companyId}
+//             selectedBranchId={branchId}
+//             onSelect={(pickedCompany, pickedBranch) => {
+//               setCompanyId(pickedCompany);
+//               setBranchId(pickedBranch);
+//               setStep(2);
+//             }}
+//           />
+//         )}
+
+//         {step === 2 && (
+//           <StepGoal
+//             selectedGoal={goal}
+//             onSelect={(picked) => {
+//               setGoal(picked);
+//               setCode("");
+//               setStep(3);
+//             }}
+//           />
+//         )}
+
+//         {step === 3 && (
+//           <StepCode
+//             goal={goal}
+//             selectedCode={code}
+//             onSelect={(picked) => {
+//               setCode(picked);
+//               setStep(4);
+//             }}
+//           />
+//         )}
+
+//         {step === 4 && (
+//           <StepPackage
+//             selectedCode={code}
+//             lessonsCount={lessonsCount}
+//             isSaving={isSaving}
+//             onSelectCount={setLessonsCount}
+//             onFinish={handleFinish}
+//           />
+//         )}
+//       </div>
+//     </div>
+//   );
+// };
+
+import React from "react";
+import { Navigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { useStudent } from "../context/StudentContext";
 
 export const StudentOnboardingWizard: React.FC = () => {
-  const navigate = useNavigate();
-  const { saveOnboardingEnrollment, enrollment, isLoadingEnrollment } =
-    useStudent();
-
-  const [step, setStep] = useState<number>(1);
-  const [companyId, setCompanyId] = useState<string>("");
-  const [branchId, setBranchId] = useState<string>("");
-  const [goal, setGoal] = useState<GoalType>(null);
-  const [code, setCode] = useState<string>("");
-  const [lessonsCount, setLessonsCount] = useState<number>(10);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-
-  const handleFinish = async () => {
-    if (!companyId || !goal || !code) return;
-    setIsSaving(true);
-    try {
-      await saveOnboardingEnrollment(
-        companyId,
-        goal,
-        code,
-        lessonsCount,
-        branchId || undefined,
-      );
-      navigate("/student/portal");
-    } catch (err) {
-      console.error("Failed saving onboarding enrollment:", err);
-      alert("Could not save your course selection. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const { enrollment, isLoadingEnrollment } = useStudent();
 
   if (isLoadingEnrollment) {
     return (
@@ -53,73 +145,21 @@ export const StudentOnboardingWizard: React.FC = () => {
     return <Navigate to="/student/portal" replace />;
   }
 
+  // V1: Front desk registers course bundles & payments directly
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-4 font-sans antialiased text-zinc-900">
-      <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl p-6 md:p-8 shadow-xl space-y-6">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-            <span>Step {step} of 4</span>
-            {step > 1 && (
-              <button
-                type="button"
-                onClick={() => setStep(step - 1)}
-                className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-900 cursor-pointer"
-              >
-                <ArrowLeft className="h-3 w-3" /> Back
-              </button>
-            )}
-          </div>
-          <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-orange-600 transition-all duration-300 rounded-full"
-              style={{ width: `${(step / 4) * 100}%` }}
-            />
-          </div>
+      <div className="w-full max-w-md bg-white border border-zinc-200 rounded-3xl p-6 md:p-8 shadow-xl text-center space-y-4">
+        <div className="h-12 w-12 rounded-2xl bg-orange-50 border border-orange-100 text-orange-600 flex items-center justify-center mx-auto font-black text-lg">
+          A
         </div>
-
-        {step === 1 && (
-          <StepSchool
-            selectedCompanyId={companyId}
-            selectedBranchId={branchId}
-            onSelect={(pickedCompany, pickedBranch) => {
-              setCompanyId(pickedCompany);
-              setBranchId(pickedBranch);
-              setStep(2);
-            }}
-          />
-        )}
-
-        {step === 2 && (
-          <StepGoal
-            selectedGoal={goal}
-            onSelect={(picked) => {
-              setGoal(picked);
-              setCode("");
-              setStep(3);
-            }}
-          />
-        )}
-
-        {step === 3 && (
-          <StepCode
-            goal={goal}
-            selectedCode={code}
-            onSelect={(picked) => {
-              setCode(picked);
-              setStep(4);
-            }}
-          />
-        )}
-
-        {step === 4 && (
-          <StepPackage
-            selectedCode={code}
-            lessonsCount={lessonsCount}
-            isSaving={isSaving}
-            onSelectCount={setLessonsCount}
-            onFinish={handleFinish}
-          />
-        )}
+        <h1 className="text-lg font-black text-zinc-900">
+          Account Created — Activate at Reception
+        </h1>
+        <p className="text-xs text-zinc-500 leading-relaxed">
+          Your student profile is ready. Please visit the front desk at your
+          driving school branch so the administrator can link your licence code
+          and lesson bundle.
+        </p>
       </div>
     </div>
   );

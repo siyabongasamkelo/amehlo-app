@@ -1,6 +1,6 @@
 import React from "react";
 import { useClerk } from "@clerk/clerk-react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "../../../context/AppContext";
 import { useStudent } from "../context/StudentContext";
 import { Car, LogOut, Phone, Mail, Loader2, Globe } from "lucide-react";
@@ -39,7 +39,29 @@ export const StudentPortal: React.FC = () => {
   }
 
   if (!enrollment) {
-    return <Navigate to="/student/onboarding" replace />;
+    return (
+      <div className="min-h-screen bg-zinc-50 py-6 px-4 font-sans antialiased flex items-center justify-center">
+        <div className="max-w-md w-full bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm text-center space-y-4">
+          <div className="h-11 w-11 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mx-auto font-black">
+            {dbUser?.name?.charAt(0).toUpperCase() || "S"}
+          </div>
+          <h1 className="text-lg font-black text-zinc-900">
+            Welcome, {dbUser?.name || "Student Driver"}
+          </h1>
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Your student profile is active, but no lesson package is linked yet.
+            Please visit the front desk at your driving school branch to set up
+            your course bundle.
+          </p>
+          <button
+            onClick={handleSignOut}
+            className="w-full h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs cursor-pointer"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

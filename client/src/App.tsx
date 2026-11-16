@@ -11,15 +11,15 @@ import { LoginGateway } from "./features/auth/LoginGateway";
 import { useCompany } from "./features/company/context/CompanyContext";
 import { StudentAuthGateway } from "./features/student/pages/StudentAuthGateway";
 import { StudentPortal } from "./features/student/pages/StudentPortal";
-import { StudentOnboardingWizard } from "./features/student/pages/StudentOnboardingWizard";
+// import { StudentOnboardingWizard } from "./features/student/pages/StudentOnboardingWizard";
 import { useStudent } from "./features/student/context/StudentContext";
-import { StudentRemoteJoin } from "./features/student/pages/StudentRemoteJoin";
+// import { StudentRemoteJoin } from "./features/student/pages/StudentRemoteJoin";
 import { StudentQrCheckIn } from "./features/student/pages/StudentQrCheckIn";
 
 export default function App() {
   const { dbUser, isLoadingProfile } = useApp();
   const { activeCompany, isLoadingCompany } = useCompany();
-  const { enrollment, isLoadingEnrollment } = useStudent();
+  const { isLoadingEnrollment } = useStudent();
 
   // Wait for profile + role-specific data before evaluating any route redirects
   if (
@@ -44,10 +44,12 @@ export default function App() {
     if (!dbUser) return "/register";
 
     const params = new URLSearchParams(window.location.search);
-    const redirectTarget = params.get("redirect");
+    const savedQrRedirect = sessionStorage.getItem("amehlo_qr_redirect");
+    const redirectTarget = params.get("redirect") || savedQrRedirect;
 
+    // 1. Inside getHomeRoute() in App.tsx:
     if (dbUser.role === "student") {
-      if (!enrollment) return "/student/onboarding";
+      if (savedQrRedirect) sessionStorage.removeItem("amehlo_qr_redirect");
       return redirectTarget || "/student/portal";
     }
     if (dbUser.role === "owner") {
@@ -64,7 +66,10 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* PUBLIC & QR STUDENT ENTRY ROUTES */}
-        <Route path="/student/join-online" element={<StudentRemoteJoin />} />
+        <Route
+          path="/student/join-online"
+          element={<Navigate to="/student/portal" replace />}
+        />
         <Route path="/student/qr-checkin" element={<StudentQrCheckIn />} />
         <Route path="/customer/join" element={<StudentQrCheckIn />} />
         <Route path="/terms" element={<TermsView />} />
@@ -85,11 +90,7 @@ export default function App() {
           path="/student/portal"
           element={
             isStudent ? (
-              enrollment ? (
-                <StudentPortal />
-              ) : (
-                <Navigate to="/student/onboarding" replace />
-              )
+              <StudentPortal />
             ) : dbUser ? (
               <Navigate to={getHomeRoute()} replace />
             ) : (
@@ -99,19 +100,7 @@ export default function App() {
         />
         <Route
           path="/student/onboarding"
-          element={
-            isStudent ? (
-              enrollment ? (
-                <Navigate to="/student/portal" replace />
-              ) : (
-                <StudentOnboardingWizard />
-              )
-            ) : dbUser ? (
-              <Navigate to={getHomeRoute()} replace />
-            ) : (
-              <Navigate to="/student/auth" replace />
-            )
-          }
+          element={<Navigate to="/student/portal" replace />}
         />
 
         {/* STAFF & OWNER AUTH ROUTES */}

@@ -24,6 +24,7 @@ export const QueueDashboard: React.FC = () => {
     rawAnalyticsLogs,
     isLoadingQueue,
     updateQueueStatusReal,
+    upgradeTicketToVipReal,
     averageWaitTime,
     totalCompletedCount,
     bestWaitTime,
@@ -133,9 +134,10 @@ export const QueueDashboard: React.FC = () => {
         queue={queue}
         services={services}
         userClerkId={user?.clerkId}
-        userRole={user?.role} // ➔ Add this prop!
+        userRole={user?.role}
         isLoadingQueue={isLoadingQueue}
         onUpdateStatus={updateQueueStatusReal}
+        onUpgradeVip={upgradeTicketToVipReal} // <-- Pass down
         onPromptAction={(ticket) => setPromptTicket(ticket)}
       />
 

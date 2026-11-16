@@ -10,6 +10,7 @@ import {
   startService,
   getStudentActiveTicket,
   getStudentLessonHistory,
+  upgradeToVip
 } from "../controllers/queueController.js";
 
 const router = Router();
@@ -24,5 +25,7 @@ router.post("/:id/complete", completeTurn);
 router.delete("/:id/ghost", purgeGhostClient);
 router.post("/:id/arrive", verifyStoreArrival);
 router.post("/:id/start", startService);
+router.post("/:id/vip", upgradeToVip);
+
 
 export default router;

@@ -7,7 +7,6 @@ import {
   QrCode,
   CheckCircle2,
   AlertCircle,
-  LogIn,
   Wallet,
 } from "lucide-react";
 import { useApp } from "../../../context/AppContext";
@@ -88,25 +87,13 @@ export const StudentQrCheckIn: React.FC = () => {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4 font-sans">
         <div className="bg-white border border-zinc-200 rounded-3xl p-6 text-center max-w-sm w-full space-y-4 shadow-sm">
-          <div className="h-11 w-11 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mx-auto">
-            <LogIn className="h-5 w-5" />
-          </div>
-          <div className="space-y-1">
-            <h2 className="text-base font-black text-zinc-900">
-              Sign In to Check In
-            </h2>
-            <p className="text-xs text-zinc-500">
-              Log in to your student account to confirm your arrival at the
-              yard.
-            </p>
-          </div>
+          {/* ... existing UI ... */}
           <button
             type="button"
-            onClick={() =>
-              navigate(
-                `/student/auth?redirect=${encodeURIComponent(redirectPath)}`,
-              )
-            }
+            onClick={() => {
+              sessionStorage.setItem("amehlo_qr_redirect", redirectPath);
+              navigate("/student/auth");
+            }}
             className="w-full h-11 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs cursor-pointer"
           >
             Continue to Student Sign In
@@ -115,6 +102,7 @@ export const StudentQrCheckIn: React.FC = () => {
       </div>
     );
   }
+
   if (activeTicket) {
     const isSameBranch = activeTicket.branchId === branchId;
 

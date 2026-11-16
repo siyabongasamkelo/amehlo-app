@@ -99,7 +99,6 @@ export const getCompanyWeeklyReport = async (
         joinedAt: student.createdAt,
       };
     });
-
     // ---------------------------------------------------------
     // REPORT 2: COMPLETED LESSONS LOG (MONDAY TO MONDAY)
     // ---------------------------------------------------------
@@ -107,16 +106,19 @@ export const getCompanyWeeklyReport = async (
       branchId: { $in: branchIds },
       completedAt: { $gte: start, $lt: end },
     })
-      .sort({ completedAt: -1 })
+      .sort({ completedAt: 1 }) // Sort chronologically first to detect turnaround gaps
       .lean();
 
-    // Collect all unique student & instructor clerkIds to resolve names in one query
+    // Collect all unique student, instructor, and VIP granter clerkIds
     const involvedClerkIds = Array.from(
       new Set([
         ...completedLogs
           .map((log) => log.studentClerkId)
           .filter((id): id is string => Boolean(id)),
         ...completedLogs.map((log) => log.servedById),
+        ...completedLogs
+          .map((log: any) => log.vipGrantedBy)
+          .filter((id): id is string => Boolean(id)),
       ]),
     );
 
@@ -137,10 +139,37 @@ export const getCompanyWeeklyReport = async (
       }
     }
 
-    const completedLessonsList = completedLogs.map((log) => {
+    // Track last completed timestamp per instructor on the same calendar day
+    const lastCompletedByInstructor = new Map<string, number>();
+
+    const chronologicalLessons = completedLogs.map((log: any) => {
       const courseInfo = log.studentClerkId
         ? codeMap.get(log.studentClerkId)
         : undefined;
+
+      const completedMs = new Date(log.completedAt).getTime();
+      const startedMs =
+        completedMs - (log.handlingDurationMins || 1) * 60 * 1000;
+      const addedMs = new Date(log.addedAt).getTime();
+
+      const dayKey = `${log.servedById}_${new Date(log.completedAt).toDateString()}`;
+      const prevCompletedMs = lastCompletedByInstructor.get(dayKey);
+      lastCompletedByInstructor.set(dayKey, completedMs);
+
+      let idleGapMins = 0;
+      let isSuspiciousGap = false;
+
+      // Check if this student was already waiting in line BEFORE the previous lesson ended
+      if (prevCompletedMs && addedMs < prevCompletedMs) {
+        idleGapMins = Math.max(
+          0,
+          Math.round((startedMs - prevCompletedMs) / 1000 / 60),
+        );
+        // If an in-yard student had to wait >= 25 mins after the car returned, flag a potential off-book lesson
+        if (log.presenceStatus === "Arrived" && idleGapMins >= 25) {
+          isSuspiciousGap = true;
+        }
+      }
 
       return {
         _id: log._id,
@@ -156,9 +185,18 @@ export const getCompanyWeeklyReport = async (
         branchName: branchMap.get(log.branchId) || "Branch",
         handlingDurationMins: log.handlingDurationMins,
         waitDurationMins: log.waitDurationMins,
+        isVip: Boolean(log.isVip),
+        vipFee: Number(log.vipFee || 0),
+        vipGrantedByName: log.vipGrantedBy
+          ? userMap.get(log.vipGrantedBy) || "Desk Staff"
+          : null,
+        idleGapMins,
+        isSuspiciousGap,
         completedAt: log.completedAt,
       };
     });
+    // Reverse back to newest-first for the frontend table
+    const completedLessonsList = chronologicalLessons.reverse();
 
     const totalExpectedRevenue = registeredLearnersList.reduce(
       (sum, s) => sum + s.supposedPrice,
@@ -173,6 +211,13 @@ export const getCompanyWeeklyReport = async (
       0,
     );
 
+    const vipLessons = completedLessonsList.filter((l) => l.isVip);
+    const totalVipCount = vipLessons.length;
+    const totalVipRevenue = vipLessons.reduce((sum, l) => sum + l.vipFee, 0);
+    const suspiciousGapsCount = completedLessonsList.filter(
+      (l) => l.isSuspiciousGap,
+    ).length;
+
     res.status(200).json({
       period: {
         startDate: start.toISOString(),
@@ -184,6 +229,9 @@ export const getCompanyWeeklyReport = async (
         unpaidNewStudents: registeredLearnersList.filter((s) => !s.isPaid)
           .length,
         totalLessonsCompleted: completedLessonsList.length,
+        totalVipCount,
+        totalVipRevenue,
+        suspiciousGapsCount,
         totalExpectedRevenue,
         totalCollectedRevenue,
         totalMissingBalance,
@@ -220,6 +268,7 @@ export const getCrossBranchAnalytics = async (
           _id: "$branchId",
           avgWaitTime: { $avg: "$waitDurationMins" },
           totalServiced: { $sum: 1 },
+          vipRevenue: { $sum: { $ifNull: ["$vipFee", 0] } },
         },
       },
       { $sort: { avgWaitTime: 1 } },
@@ -229,6 +278,7 @@ export const getCrossBranchAnalytics = async (
       branchId: item._id,
       avgWaitTime: Math.round(item.avgWaitTime || 0),
       totalServiced: item.totalServiced,
+      vipRevenue: item.vipRevenue,
     }));
 
     res.status(200).json(formatted);

@@ -13,6 +13,10 @@ export interface IQueueTicket extends Document {
   status: "Waiting" | "Active" | "Up Next";
   presenceStatus: "Remote" | "Arrived";
   preferredWorkerId?: string;
+  isVip: boolean;
+  vipFee: number;
+  vipGrantedBy?: string | null;
+  vipGrantedAt?: Date | null;
   addedAt: Date;
   startedServiceAt?: Date;
 }
@@ -27,6 +31,9 @@ export interface ICompletionLog extends Document {
   waitDurationMins: number;
   handlingDurationMins: number;
   presenceStatus: "Remote" | "Arrived";
+  isVip: boolean;
+  vipFee: number;
+  vipGrantedBy?: string | null;
   feedbackRating?: number;
   addedAt: Date;
   completedAt: Date;
@@ -55,6 +62,9 @@ const QueueTicketSchema = new Schema<IQueueTicket>({
   preferredWorkerId: { type: String, default: null, index: true },
   addedAt: { type: Date, default: Date.now },
   startedServiceAt: { type: Date, default: null },
+  isVip: { type: Boolean, default: false },
+  vipFee: { type: Number, default: 0 },
+  vipGrantedBy: { type: String, default: null },
 });
 
 QueueTicketSchema.index({ branchId: 1, position: 1 });
@@ -72,6 +82,9 @@ const CompletionLogSchema = new Schema<ICompletionLog>({
   feedbackRating: { type: Number, default: null },
   addedAt: { type: Date, required: true },
   completedAt: { type: Date, default: Date.now, index: true },
+  isVip: { type: Boolean, default: false },
+  vipFee: { type: Number, default: 0 },
+  vipGrantedBy: { type: String, default: null },
 });
 
 export const QueueTicket = model<IQueueTicket>(

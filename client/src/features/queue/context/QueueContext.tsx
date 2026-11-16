@@ -30,6 +30,7 @@ interface QueueContextType {
     status: "Waiting" | "Active" | "Completed" | "Absent",
     servedById?: string,
   ) => Promise<void>;
+  upgradeTicketToVipReal: (ticketId: string, vipFee?: number) => Promise<void>;
 }
 
 const QueueContext = createContext<QueueContextType | undefined>(undefined);
@@ -115,6 +116,28 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // 1. Add to QueueContextType interface:
+
+  // 2. Add this function inside QueueProvider (right below updateQueueStatusReal):
+  const upgradeTicketToVipReal = async (
+    ticketId: string,
+    vipFee: number = 100,
+  ) => {
+    if (!activeBranchId) return;
+    try {
+      const grantedByClerkId = dbUser?.clerkId || "SYSTEM_OPERATOR";
+      const updatedQueue = await queueService.upgradeToVip(
+        ticketId,
+        grantedByClerkId,
+        vipFee,
+      );
+      setQueue(updatedQueue);
+    } catch (err) {
+      console.error("VIP priority upgrade operational error:", err);
+      throw err;
+    }
+  };
+
   // Real-time WebSocket & queue metrics tracker for the active branch
   useEffect(() => {
     if (!activeBranchId) {
@@ -157,6 +180,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({
         loadLiveQueueMetrics,
         insertQueueReal,
         updateQueueStatusReal,
+        upgradeTicketToVipReal,
       }}
     >
       {children}

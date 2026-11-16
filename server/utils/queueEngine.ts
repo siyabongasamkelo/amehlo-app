@@ -7,18 +7,45 @@ import { QueueTicket } from "../models/QueueTicket.js";
 export const resequenceBranchQueue = async (
   branchId: string,
 ): Promise<void> => {
-  // Pull all active tickets for the branch ordered by current positions/timestamps
-  const tickets = await QueueTicket.find({ branchId }).sort({
-    position: 1,
-    addedAt: 1,
-  });
+  const tickets = await QueueTicket.find({ branchId });
 
-  const bulkOps = tickets.map((ticket, index) => {
+  // 1. Keep active lessons at the very top
+  const activeTickets = tickets
+    .filter((t) => t.status === "Active")
+    .sort((a, b) => a.position - b.position);
+
+  // 2. VIP tickets jump ahead of all standard waiting tickets
+  const vipWaiting = tickets
+    .filter((t) => t.status !== "Active" && t.isVip)
+    .sort(
+      (a, b) =>
+        new Date(a.vipGrantedAt || a.addedAt).getTime() -
+        new Date(b.vipGrantedAt || b.addedAt).getTime(),
+    );
+
+  // 3. Standard waiting tickets keep their normal order
+  const regularWaiting = tickets
+    .filter((t) => t.status !== "Active" && !t.isVip)
+    .sort(
+      (a, b) =>
+        a.position - b.position ||
+        new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime(),
+    );
+
+  const ordered = [...activeTickets, ...vipWaiting, ...regularWaiting];
+
+  const bulkOps = ordered.map((ticket, index) => {
     const newPosition = index + 1;
-    let newStatus: "Active" | "Up Next" | "Waiting" = "Waiting";
+    let newStatus: "Active" | "Up Next" | "Waiting" = ticket.status;
 
-    if (newPosition === 1) newStatus = "Active";
-    else if (newPosition === 2) newStatus = "Up Next";
+    if (ticket.status !== "Active") {
+      newStatus =
+        newPosition === 1
+          ? "Active"
+          : newPosition === 2
+            ? "Up Next"
+            : "Waiting";
+    }
 
     return {
       updateOne: {

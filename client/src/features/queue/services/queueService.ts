@@ -9,13 +9,16 @@ export interface IQueueItem {
   _id: string;
   ticketId: string;
   branchId: string;
-  serviceId: string; // ➔ Added to track multi-service lane assignments on the client
+  serviceId: string;
   name: string;
   phone: string;
   email?: string;
   position: number;
   status: "Active" | "Up Next" | "Waiting";
   presenceStatus?: "Remote" | "Arrived";
+  isVip?: boolean;
+  vipFee?: number;
+  vipGrantedBy?: string | null;
   addedAt: string;
 }
 
@@ -50,6 +53,11 @@ export interface ICompletedLessonReportItem {
   branchName: string;
   handlingDurationMins: number;
   waitDurationMins: number;
+  isVip?: boolean;
+  vipFee?: number;
+  vipGrantedByName?: string | null;
+  idleGapMins?: number;
+  isSuspiciousGap?: boolean;
   completedAt: string;
 }
 
@@ -60,6 +68,9 @@ export interface IWeeklyReportResponse {
     paidNewStudents: number;
     unpaidNewStudents: number;
     totalLessonsCompleted: number;
+    totalVipCount: number;
+    totalVipRevenue: number;
+    suspiciousGapsCount: number; // <-- Add this line
     totalExpectedRevenue: number;
     totalCollectedRevenue: number;
     totalMissingBalance: number;
@@ -163,5 +174,17 @@ export const queueService = {
       },
     );
     return response.data;
+  },
+
+  upgradeToVip: async (
+    ticketId: string,
+    grantedByClerkId: string,
+    vipFee: number = 100,
+  ): Promise<IQueueItem[]> => {
+    const response = await axios.post(`${API_URL}/${ticketId}/vip`, {
+      grantedByClerkId,
+      vipFee,
+    });
+    return response.data.queue;
   },
 };

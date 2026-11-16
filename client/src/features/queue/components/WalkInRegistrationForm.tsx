@@ -297,10 +297,12 @@ export const WalkInRegistrationForm: React.FC<WalkInRegistrationFormProps> = ({
               onChange={(e) => setLessonsCount(Number(e.target.value))}
               className="w-full h-10 px-3 rounded-xl border border-zinc-200 bg-zinc-50/70 text-xs font-bold text-zinc-800 focus:outline-none focus:border-orange-500"
             >
+              <option value={1}>1 Lessons</option>
               <option value={5}>5 Lessons</option>
               <option value={10}>10 Lessons</option>
-              <option value={15}>15 Lessons</option>
               <option value={20}>20 Lessons</option>
+              <option value={50}>50 Lessons</option>
+              <option value={60}>60 Lessons</option>
             </select>
           </div>
 

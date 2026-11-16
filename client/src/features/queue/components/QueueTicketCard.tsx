@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { MoreVertical, UserX, Briefcase, MapPin } from "lucide-react";
+import { MoreVertical, UserX, Briefcase, MapPin, Crown } from "lucide-react";
 
 interface QueueTicketCardProps {
   item: any;
   serviceBadgeLabel: string;
   onUpdateStatus: (ticketId: string, status: string) => void;
   onPromptAction: (ticket: any) => void;
+  onUpgradeVip?: (ticketId: string) => void;
 }
 
 export const QueueTicketCard: React.FC<QueueTicketCardProps> = ({
@@ -13,24 +14,46 @@ export const QueueTicketCard: React.FC<QueueTicketCardProps> = ({
   serviceBadgeLabel,
   onUpdateStatus,
   onPromptAction,
+  onUpgradeVip,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isActive = item.status === "Active";
+  const isVip = Boolean(item.isVip);
+
+  const handleVipClick = () => {
+    setIsMenuOpen(false);
+    const confirmed = window.confirm(
+      `Confirm R100 VIP Queue Pass payment collected for ${item.name} (#${item.ticketId})? This will move them to the front of the waiting line and log your operator ID.`,
+    );
+    if (confirmed && onUpgradeVip) {
+      onUpgradeVip(item._id);
+    }
+  };
 
   return (
     <div
       className={`min-w-[300px] md:min-w-[330px] snap-start rounded-2xl border p-5 flex flex-col justify-between transition-all relative shrink-0 shadow-sm ${
         isActive
           ? "bg-white border-emerald-500 shadow-md shadow-emerald-50"
-          : "bg-white border-zinc-200 hover:border-zinc-300"
+          : isVip
+            ? "bg-amber-50/20 border-amber-400 shadow-md shadow-amber-50"
+            : "bg-white border-zinc-200 hover:border-zinc-300"
       }`}
     >
       <div className="space-y-4">
         <div className="flex justify-between items-start">
           <div>
-            <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
-              TICKET ID
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase tracking-wider">
+                TICKET ID
+              </span>
+              {isVip && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-amber-800 font-black uppercase tracking-wider text-[8px]">
+                  <Crown className="h-2.5 w-2.5 text-amber-600" />
+                  VIP R{item.vipFee || 100}
+                </span>
+              )}
+            </div>
             <h3 className="font-black text-xl text-zinc-900 tracking-tight leading-none mt-0.5">
               #{item.ticketId}
             </h3>
@@ -41,7 +64,9 @@ export const QueueTicketCard: React.FC<QueueTicketCardProps> = ({
               className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${
                 isActive
                   ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                  : "bg-zinc-100 text-zinc-600"
+                  : isVip
+                    ? "bg-amber-100 text-amber-800 border border-amber-200"
+                    : "bg-zinc-100 text-zinc-600"
               }`}
             >
               {isActive ? "At Counter" : `Pos #${item.position}`}
@@ -58,9 +83,20 @@ export const QueueTicketCard: React.FC<QueueTicketCardProps> = ({
 
               {isMenuOpen && (
                 <div
-                  className="absolute right-0 mt-1 w-44 rounded-xl border border-zinc-200 bg-white p-1 shadow-lg z-40 animate-in fade-in slide-in-from-top-1 duration-150"
+                  className="absolute right-0 mt-1 w-48 rounded-xl border border-zinc-200 bg-white p-1 shadow-lg z-40 animate-in fade-in slide-in-from-top-1 duration-150 space-y-0.5"
                   onMouseLeave={() => setIsMenuOpen(false)}
                 >
+                  {!isActive && !isVip && onUpgradeVip && (
+                    <button
+                      type="button"
+                      onClick={handleVipClick}
+                      className="w-full text-left px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Crown className="h-3.5 w-3.5 text-amber-600" /> VIP Pass
+                      (R100)
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => {
